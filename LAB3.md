@@ -1,7 +1,7 @@
 ### 2. Vorbereitung
 Als user `system`
 
-```
+```sql
 -- Create two other users
 CREATE USER charlie IDENTIFIED BY charliesSuperSecurePassword;
 CREATE USER snoopy IDENTIFIED BY snoopysSuperSecurePassword;
@@ -19,7 +19,7 @@ GRANT CREATE VIEW TO scott;
 
 Zunächst wird eine View erstellt:
 
-```
+```sql
 CREATE OR REPLACE VIEW emp_seniority_view
 AS SELECT ename, hiredate
 FROM emp;
@@ -27,13 +27,13 @@ FROM emp;
 
 Zusätzliche Spalte in die Tabelle `EMP` einfügen:
 
-```
+```sql
 ALTER TABLE emp ADD FIRED date;
 ```
 
 Diese Operation konnte ohne zusätzliche Privilages mit dem User Scott ausgeführt werden. Dies liegt daran das er der Owner der Tabelle `emp` ist: Wir verifizieren dies mit:
 
-```
+```sql
 SELECT * FROM  CAT;
 ```
 
@@ -54,7 +54,7 @@ Grundsätzlich sind `UPDATE`, `INSERT` und `DELETE` Befehle problemlos möglich.
 
 Beispiel an einem `UPDATE`:
 
-```
+```sql
 UPDATE EMP_SENIORITY_VIEW SET HIREDATE = CURRENT_TIMESTAMP WHERE ENAME = 'SMITH';
 ```
 
@@ -62,14 +62,14 @@ UPDATE EMP_SENIORITY_VIEW SET HIREDATE = CURRENT_TIMESTAMP WHERE ENAME = 'SMITH'
 
 Nun erstellen wir eine neue View welche eine Funktion enthält:
 
-```
+```sql
 CREATE OR REPLACE VIEW emp_function_demo_view
     (ENAME,SAL)
 AS SELECT concat(ENAME, JOB), SAL
    FROM emp;
 ```
 
-```
+```sql
 SELECT * FROM emp_function_demo_view;
 ```
 
@@ -85,7 +85,7 @@ UPDATE emp_function_demo_view SET ENAME = 'Test1' WHERE ENAME = 'SMITHCLERK';
 
 Als erstes erstellen wir eine entsprechende View:
 
-```
+```sql
 CREATE OR REPLACE VIEW emp_dept_view
             (empno, ename, dname)
 AS SELECT empno, ename, dname
@@ -94,7 +94,7 @@ AS SELECT empno, ename, dname
 
 Grundsätzlich gilt wir können nur Daten der Tabelle änderen welche `key-preserved` ist, dass heisst in dieser Tabelle wo der Primarykey erhalten bleibt. In unserem Fall ist das `EMP`
 
-```
+```sql
 UPDATE emp_dept_view SET ENAME = 'TESTER' WHERE DNAME = 'RESEARCH';
 ```
 
@@ -102,7 +102,7 @@ UPDATE emp_dept_view SET ENAME = 'TESTER' WHERE DNAME = 'RESEARCH';
 
 Wollen wir hingeben auf `DEPT` etwas ändern:
 
-```
+```sql
 UPDATE emp_dept_view SET DNAME = 'TESTER' WHERE EMPNO = '7369';
 ```
 
@@ -112,7 +112,7 @@ UPDATE emp_dept_view SET DNAME = 'TESTER' WHERE EMPNO = '7369';
 
 Ohne die `CHECK OPTION` ist es möglich das ein User Daten aus der View "verschwinden" lassen kann - er kann Änderungen durchführen welche in der View nicht sichtbar sind. Um dies zu demonstrieren erstellen wir zuerst eine View ohne `CHECK OPTION`:
 
-```
+```sql
 CREATE OR REPLACE VIEW emp_sales_view
 AS SELECT empno,ename, deptno,job,sal
     FROM EMP WHERE DEPTNO = 30;

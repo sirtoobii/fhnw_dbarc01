@@ -1,7 +1,4 @@
 ### 2. Vorbereitung
-
-![Hitze.jpg](/index.php/core/preview?fileId=247&x=1024&y=1024&a=true#mimetype=image%2Fjpeg&hasPreview=true&fileId=247)
-
 Als user `system`
 
 ```
@@ -46,7 +43,14 @@ SELECT * FROM  CAT;
 
 Grundsätzlich sind `UPDATE`, `INSERT` und `DELETE` Befehle problemlos möglich. Allerdings mit folgenden Einschränkungen:
 
-| Einschränkung | `DELETE` | `UDPATE` | `INSERT` | |---------------------------------------------------------------------------------|----------|----------|----------| | Gruppenfunktione | x | x | x | | `GROUP BY` Klausel | x | x | x | | das Schlüsselwort `DISTINCT` | x | x | x | | die Pseudospalte `ROWNUM` | x | x | x | | durch Ausdrücke definierte Spalten | | x | x | | `NOT NULL` Spalten der Basistabelle, die nicht durch die View ausgewählt werden | | | x |
+| Einschränkung                                                                   | `DELETE` | `UDPATE` | `INSERT` |
+|---------------------------------------------------------------------------------|----------|----------|----------|
+| Gruppenfunktione                                                                | x        | x        | x        |
+| `GROUP BY` Klausel                                                              | x        | x        | x        |
+| das Schlüsselwort `DISTINCT`                                                    | x        | x        | x        |
+| die Pseudospalte `ROWNUM`                                                       | x        | x        | x        |
+| durch Ausdrücke definierte Spalten                                              |          | x        | x        |
+| `NOT NULL` Spalten der Basistabelle, die nicht durch die View ausgewählt werden |          |          | x        |
 
 Beispiel an einem `UPDATE`:
 

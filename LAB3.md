@@ -5,6 +5,9 @@ Als user `system`
 -- Create two other users
 CREATE USER charlie IDENTIFIED BY charliesSuperSecurePassword;
 CREATE USER snoopy IDENTIFIED BY snoopysSuperSecurePassword;
+-- Grant essential privileges
+GRANT CREATE SESSION TO charlie;
+GRANT CREATE SESSION TO snoopy;
 
 -- Allow user scott to create rules
 GRANT CREATE ROLE TO scott;
@@ -75,7 +78,7 @@ SELECT * FROM emp_function_demo_view;
 
 ![](img/0c638108.png)
 
-```
+```sql
 UPDATE emp_function_demo_view SET ENAME = 'Test1' WHERE ENAME = 'SMITHCLERK';
 ```
 
@@ -120,19 +123,59 @@ AS SELECT empno,ename, deptno,job,sal
 CREATE OR REPLACE VIEW emp_sales_loc
 AS SELECT empno, ename, deptno, job, sal,loc
     FROM emp_sales_view JOIN DEPT USING(deptno);
+
+SELECT * FROM emp_sales_loc;
 ```
+![](img/0932546d.png)
+
+Wir lassen nun demonstrativ einen Mitarbeiter "verschwinden" indem bei _ALLEN_ das Department geändert wird:
+
+```sql
+UPDATE EMP_SALES_VIEW SET DEPTNO = 20 WHERE EMPNO = 7499;
+SELECT * FROM emp_sales_loc;
+```
+![](img/3a0d58d1.png)
+**TODO:** Noch nicht fertig, fragen was er hier genau will
 
 ### 4 Zugriffssteuerung mit User und Rollen
-
 #### 4.1 View erstellen
+```sql
+CREATE OR REPLACE VIEW emp_summary_view
+AS SELECT ename, job, dname, loc
+FROM  EMP JOIN DEPT D on EMP.DEPTNO = D.DEPTNO;
 
+SELECT * FROM emp_summary_view;
+```
+![](img/cead1377.png)
 #### 4.2 Rollen definieren
-
+```sql
+CREATE ROLE emp_summary_ro_role;
+CREATE ROLE emp_summary_rw_role;
+```
 #### 4.3 Den Rollen Rechte zuweisen
-
+```sql
+GRANT SELECT ON emp_summary_view TO emp_user_role;
+GRANT SELECT,UPDATE, INSERT,ALTER,DELETE ON EMP TO emp_manager_role;
+```
 #### 4.4 Den User Rollen zuweisen
-
+```sql
+GRANT emp_user_role TO charlie;
+GRANT emp_manager_role TO snoopy;
+```
 #### 4.5 Überprüfen Sie die beiden Rollen
+##### 4.5.1 User `charlie`:
+```sql
+SELECT * FROM SCOTT.emp_summary_view;
+```
+![](img/3378ac31.png)
+```sql
+UPDATE SCOTT.EMP_SUMMARY_VIEW SET ENAME = 'Evil_c' WHERE ENAME = 'TESTER';
+```
+**Fehler:** `insufficient privileges`
+
+##### 4.5.2 User `snoopy`:
+
+
 
 ### 5 Zugriffsrechte: Objekt- und Systemrechte
 

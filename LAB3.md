@@ -225,31 +225,31 @@ In diesem Experiment wollen wir untersuchen, ob weitergegebene Objektrechte kask
 Dazu legen wir uns als `system` zwei neue Benutzer `mickey` und `minnie` an:
 ```sql
 CREATE USER mickey IDENTIFIED BY mickeyInDisneyLand;
-> User MICKEY erstellt.
+-- User MICKEY erstellt.
 
 GRANT CREATE SESSION TO mickey;
-> Grant erfolgreich.
+-- Grant erfolgreich.
 
 
 CREATE USER minnie IDENTIFIED BY minnieInDisneyLand;
-> User MINNIE erstellt.
+-- User MINNIE erstellt.
 
 GRANT CREATE SESSION TO minnie;
-> Grant erfolgreich.
+-- Grant erfolgreich.
 ```
 ![](img/5121.png)
 
 Nun geben wir `mickey` die Berechtigung, `SELECT`-Statements auf der Tabelle `emp` auszuführen und diese auch weiterzugeben:
 ```sql
 GRANT SELECT ON system.emp TO mickey WITH GRANT OPTION;
-> Grant erfolgreich.
+-- Grant erfolgreich.
 ```
 ![](img/5122.png)
 
 Als `mickey` geben wir die `SELECT`-Berechtigung an `minnie` weiter:
 ```sql
 GRANT SELECT ON system.emp TO minnie;
-> Grant erfolgreich.
+-- Grant erfolgreich.
 ```
 ![](img/5123.png)
 
@@ -262,7 +262,7 @@ SELECT * FROM USER_TAB_PRIVS WHERE TABLE_NAME = 'EMP';
 Der Benutzer `system` entzieht nun `mickey` die zuvor erteilte Berechtigung mit:
 ```sql
 REVOKE SELECT ON emp FROM mickey;
-> Revoke erfolgreich.
+--Revoke erfolgreich.
 ```
 ![](img/5125.png)
 
@@ -300,10 +300,10 @@ CREATE TABLE mickey_friends(
     last_name VARCHAR2(50) NOT NULL,
     PRIMARY KEY(friend_id)
 );
-> Table MICKEY_FRIENDS erstellt.
+--Table MICKEY_FRIENDS erstellt.
 
 GRANT CREATE ANY TABLE TO minnie;
-> Grant erfolgreich.
+--Grant erfolgreich.
 ```
 ![](img/5223.png)
 
@@ -315,7 +315,7 @@ CREATE TABLE minnie_friends(
     last_name VARCHAR2(50) NOT NULL,
     PRIMARY KEY(friend_id)
 );
-> Table MINNIE_FRIENDS erstellt.
+--Table MINNIE_FRIENDS erstellt.
 ```
 
 Mit dem folgenden SQL-Statement lassen sich die Systemrechte für `mickey` und `minnie` anzeigen:
@@ -327,7 +327,7 @@ SELECT * FROM SYS.DBA_SYS_PRIVS WHERE GRANTEE = 'MICKEY' OR GRANTEE = 'MINNIE';
 Der Benutzer `system` entzieht nun `mickey` die zuvor erteilte Berechtigung mit:
 ```sql
 REVOKE CREATE ANY TABLE FROM mickey;
-> Revoke erfolgreich.
+--Revoke erfolgreich.
 ```
 ![](img/5225.png)
 

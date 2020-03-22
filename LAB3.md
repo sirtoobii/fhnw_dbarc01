@@ -211,8 +211,6 @@ SELECT * FROM SCOTT.EMP;
 
 ### 5 Zugriffsrechte: Objekt- und Systemrechte
 
-Wichtig hier wünscht er so ein graph ![](img/graph_example.jpg)
-
 #### 5.1 Objektrechte
 ##### 5.1.1 Was sind Objektrechte?
 Sie berechtigen dazu, Operationen auf existierenden Objekten auszuführen.

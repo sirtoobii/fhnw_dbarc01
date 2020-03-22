@@ -182,7 +182,7 @@ CREATE ROLE emp_manager_role;
 #### 4.3 Den Rollen Rechte zuweisen
 ```sql
 GRANT SELECT ON emp_summary_view TO emp_user_role;
-GRANT SELECT,UPDATE, INSERT,ALTER,DELETE ON EMP TO emp_manager_role;
+GRANT SELECT,UPDATE,INSERT,ALTER,DELETE ON EMP TO emp_manager_role;
 ```
 #### 4.4 Den User Rollen zuweisen
 ```sql
@@ -262,7 +262,7 @@ SELECT * FROM USER_TAB_PRIVS WHERE TABLE_NAME = 'EMP';
 Der Benutzer `system` entzieht nun `mickey` die zuvor erteilte Berechtigung mit:
 ```sql
 REVOKE SELECT ON emp FROM mickey;
---Revoke erfolgreich.
+-- Revoke erfolgreich.
 ```
 ![](img/5125.PNG)
 
@@ -271,6 +271,7 @@ Schauen wir uns jetzt nochmals die Berechtigungseinträge mit dem obigen Stateme
 ![](img/5131.PNG)
 
 Die mit `GRANT OPTION` verteilten Berechtigungen werden also kaskadierend widerrufen.
+
 ![](img/5132.PNG)
 
 #### 5.2 Systemrechte
@@ -283,6 +284,7 @@ Zugriffe und Veränderungen an den eigenen Tabellen werden nicht explizit aufgef
 ##### 5.2.2 Das Experiment
 In diesem Experiment wollen wir untersuchen, ob weitergegebene Systemrechte kaskadierend entfernt werden.
 Dazu greifen wir auf die zuvor von `system` angelegten Benutzer `mickey` und `minnie` zurück.
+
 ![](img/5221.PNG)
 
 Nun geben wir `mickey` die Berechtigung, in jedem Schema Tabellen zu erzeugen und diese auch weiterzugeben:
@@ -300,10 +302,10 @@ CREATE TABLE mickey_friends(
     last_name VARCHAR2(50) NOT NULL,
     PRIMARY KEY(friend_id)
 );
---Table MICKEY_FRIENDS erstellt.
+-- Table MICKEY_FRIENDS erstellt.
 
 GRANT CREATE ANY TABLE TO minnie;
---Grant erfolgreich.
+-- Grant erfolgreich.
 ```
 ![](img/5223.PNG)
 
@@ -315,7 +317,7 @@ CREATE TABLE minnie_friends(
     last_name VARCHAR2(50) NOT NULL,
     PRIMARY KEY(friend_id)
 );
---Table MINNIE_FRIENDS erstellt.
+-- Table MINNIE_FRIENDS erstellt.
 ```
 
 Mit dem folgenden SQL-Statement lassen sich die Systemrechte für `mickey` und `minnie` anzeigen:
@@ -327,7 +329,7 @@ SELECT * FROM SYS.DBA_SYS_PRIVS WHERE GRANTEE = 'MICKEY' OR GRANTEE = 'MINNIE';
 Der Benutzer `system` entzieht nun `mickey` die zuvor erteilte Berechtigung mit:
 ```sql
 REVOKE CREATE ANY TABLE FROM mickey;
---Revoke erfolgreich.
+-- Revoke erfolgreich.
 ```
 ![](img/5225.PNG)
 
@@ -343,21 +345,35 @@ Mit dem folgenden SQL-Statement überprüfen wir zusätzlich, ob die jeweils ers
 SELECT OWNER, TABLE_NAME FROM ALL_TABLES WHERE OWNER = 'MICKEY' OR OWNER = 'MINNIE';
 ```
 ![](img/5232.PNG)
+
 Die Tabellen existieren nach wie vor und wurden nicht mit den Systemrechten zusammen entfernt.
 
 Die mit `ADMIN OPTION` verteilten Berechtigungen werden also **nicht** kaskadierend widerrufen:
+
 ![](img/5233.PNG)
 
 #### 5.3 Rechte auf Views
 
 ##### 5.3.1 Szenario
-Der Benutzer `scott` ermöglicht dem Benutzer `snoopy` Lesezugriff auf die `BONUS`-Tabelle allerdings ohne die `WITH GRANT OPTION`,
+Der Benutzer `scott` ermöglicht dem Benutzer `snoopy` Lesezugriff auf die `EMP`-Tabelle allerdings ohne die `WITH GRANT OPTION`,
 damit kann `snoopy` die Berechtigung nicht weitergeben.
 
 ##### 5.3.2 Das Experiment
-Der Benutzer `charlie` möchte nun über `snoopy` auf die `BONUS`-Tabelle zugreifen. Da `snoopy` die Berechtigung hat, neue Views zu erstellen,
+Der Benutzer `charlie` möchte nun über `snoopy` auf die `EMP`-Tabelle zugreifen. Da `snoopy` die Berechtigung hat, neue Views zu erstellen,
 verfolgen wir diesen Ansatz weiter.
+
 ![](img/5321.PNG)
 
+Wir erstellen mit dem Benutzer `snoopy` eine neue View für die `EMP`-Tabelle:
+```sql
+CREATE VIEW EMP_FOR_CHARLIE_VIEW AS SELECT EMPNO, ENAME, JOB, HIREDATE FROM SCOTT.EMP;
+```
+
+Anschliessend geben wir diese View mit den selben Berechtigungen an `charlie` weiter:
+```sql
+GRANT SELECT,INSERT,DELETE,UPDATE ON EMP_FOR_CHARLIE_VIEW TO charlie;
+-- GRANT erfolgreich.
+```
+
 ##### 5.3.3 Beobachtung
-Es funktioniert! :)
+Damit lässt dich die `GRANT OPTION` umgehen und die Berechtigungen weitergeben, allerdings müssen Referenzen auf Views separat erlaubt werden.

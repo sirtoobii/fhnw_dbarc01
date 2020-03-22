@@ -116,26 +116,47 @@ UPDATE emp_dept_view SET DNAME = 'TESTER' WHERE EMPNO = '7369';
 Ohne die `CHECK OPTION` ist es möglich das ein User Daten aus der View "verschwinden" lassen kann - er kann Änderungen durchführen welche in der View nicht sichtbar sind. Um dies zu demonstrieren erstellen wir zuerst eine View ohne `CHECK OPTION`:
 
 ```sql
-CREATE OR REPLACE VIEW emp_sales_view
-AS SELECT empno,ename, deptno,job,sal
-    FROM EMP WHERE DEPTNO = 30;
+CREATE OR REPLACE VIEW sal_gt_1000_view
+AS SELECT * FROM EMP WHERE SAL > 1000;
 
-CREATE OR REPLACE VIEW emp_sales_loc
-AS SELECT empno, ename, deptno, job, sal,loc
-    FROM emp_sales_view JOIN DEPT USING(deptno);
+CREATE OR REPLACE VIEW sal_gt_1000_and_dept_eq_30_view
+AS SELECT * FROM sal_gt_1000_view WHERE DEPTNO = 30;
 
-SELECT * FROM emp_sales_loc;
+SELECT * FROM sal_gt_1000_and_dept_eq_30_view;
 ```
-![](img/0932546d.png)
-
-Wir lassen nun demonstrativ einen Mitarbeiter "verschwinden" indem bei _ALLEN_ das Department geändert wird:
-
+![](img/screen002.png)
+Wir lassen nun demonstrativ einen Mitarbeiter "verschwinden" indem bei _WARD_ das Department geändert wird:
 ```sql
-UPDATE EMP_SALES_VIEW SET DEPTNO = 20 WHERE EMPNO = 7499;
-SELECT * FROM emp_sales_loc;
+UPDATE sal_gt_1000_and_dept_eq_30_view SET DEPTNO = 20 WHERE EMPNO = 7521;
+SELECT * FROM sal_gt_1000_and_dept_eq_30_view;
 ```
-![](img/3a0d58d1.png)
-**TODO:** Noch nicht fertig, fragen was er hier genau will
+![](img/screen003.png)
+
+Setzen wir nun auf der `sal_gt_1000_and_dept_eq_30_view` die `CHECK OPTION`
+```sql
+CREATE OR REPLACE VIEW sal_gt_1000_and_dept_eq_30_view
+AS SELECT * FROM sal_gt_1000_view WHERE DEPTNO = 30 WITH CHECK OPTION;
+-- Try again
+UPDATE sal_gt_1000_and_dept_eq_30_view SET DEPTNO = 20 WHERE EMPNO = 7654;
+```
+**Fehler:** `view WITH CHECK OPTION where-clause violation`
+
+Untersuchen wir auch noch den Fall wenn die `CHECK OPTION` nur auf `sal_gt_1000_view` gesetzt ist:
+```sql
+-- remove check option from combined view
+CREATE OR REPLACE VIEW sal_gt_1000_and_dept_eq_30_view
+AS SELECT * FROM sal_gt_1000_view WHERE DEPTNO = 30;
+
+CREATE OR REPLACE VIEW sal_gt_1000_view
+AS SELECT * FROM EMP WHERE SAL > 1000 WITH CHECK OPTION;
+
+-- Try again
+UPDATE sal_gt_1000_and_dept_eq_30_view SET DEPTNO = 20 WHERE EMPNO = 7654;
+```
+![](img/screen004.png)
+
+Der vorherige Update funktioniert nun ohne Probleme. Die Schlussfolgerung daraus ist, `CHECK OPTION` funktioniert nur innerhalb
+ihrer view!
 
 ### 4 Zugriffssteuerung mit User und Rollen
 #### 4.1 View erstellen
@@ -149,8 +170,8 @@ SELECT * FROM emp_summary_view;
 ![](img/cead1377.png)
 #### 4.2 Rollen definieren
 ```sql
-CREATE ROLE emp_summary_ro_role;
-CREATE ROLE emp_summary_rw_role;
+CREATE ROLE emp_user_role;
+CREATE ROLE emp_manager_role;
 ```
 #### 4.3 Den Rollen Rechte zuweisen
 ```sql
@@ -174,7 +195,12 @@ UPDATE SCOTT.EMP_SUMMARY_VIEW SET ENAME = 'Evil_c' WHERE ENAME = 'TESTER';
 **Fehler:** `insufficient privileges`
 
 ##### 4.5.2 User `snoopy`:
-
+Versuchen wir das gleiche Update nun mit dem user snoopy:
+```sql
+UPDATE SCOTT.EMP SET ENAME = 'Evil_c' WHERE ENAME = 'TESTER';
+SELECT * FROM SCOTT.EMP;
+```
+![](img/Screenshot%20from%202020-03-22%2013-57-51.png)
 
 
 ### 5 Zugriffsrechte: Objekt- und Systemrechte

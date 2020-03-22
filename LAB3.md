@@ -1,3 +1,9 @@
+### 1. Einleitung
+Dieses Dokument ist im Rahmen des Moduls dbarc entstanden und geht auf die Fragenstellungen der Übung 3 ein.
+Konkret befasst sich diese mit der Zugriffssteuerung und den Views.
+Für eine bessere Übersicht sind SQL-Befehle in Konsolenschrift und die Syntax zusätzlich in Grossbuchstaben beschrieben, ggf. werden diese mit weiterführenden Befehlen ergänzt.
+
+
 ### 2. Vorbereitung
 Als user `system`
 
@@ -46,7 +52,7 @@ SELECT * FROM  CAT;
 
 Grundsätzlich sind `UPDATE`, `INSERT` und `DELETE` Befehle problemlos möglich. Allerdings mit folgenden Einschränkungen:
 
-| Einschränkung                                                                   | `DELETE` | `UDPATE` | `INSERT` |
+| Einschränkung                                                                   | `DELETE` |  `UDPATE` | `INSERT` |
 |---------------------------------------------------------------------------------|----------|----------|----------|
 | Gruppenfunktione                                                                | x        | x        | x        |
 | `GROUP BY` Klausel                                                              | x        | x        | x        |
@@ -182,7 +188,150 @@ UPDATE SCOTT.EMP_SUMMARY_VIEW SET ENAME = 'Evil_c' WHERE ENAME = 'TESTER';
 Wichtig hier wünscht er so ein graph ![](img/graph_example.jpg)
 
 #### 5.1 Objektrechte
+##### 5.1.1 Was sind Objektrechte?
+Sie berechtigen dazu, Operationen auf existierenden Objekten auszuführen.
+Die Rechte können einem Datenbankbenutzer oder einer Rolle zugeteilt werden können, um so gewisse Operationen auf der Objektebene auszuführen. 
+Diese Operationen können `SELECT` , `INSERT` , `UPDATE` , `DELETE` , `ALTER` , `INDEX` auf Tabellen und Views oder `EXECUTE` auf Prozeduren und Fuktionen sein.
+Ebenso gibt es die Möglichkeit, einzelne Operationen auszunehmen.
+
+##### 5.1.2 Das Experiment
+In diesem Experiment wollen wir untersuchen, ob weitergegebene Objektrechte kaskadierend entfernt werden.
+Dazu legen wir uns als `system` zwei neue Benutzer `mickey` und `minnie` an:
+```sql
+CREATE USER mickey IDENTIFIED BY mickeyInDisneyLand;
+> User MICKEY erstellt.
+
+GRANT CREATE SESSION TO mickey;
+> Grant erfolgreich.
+
+
+CREATE USER minnie IDENTIFIED BY minnieInDisneyLand;
+> User MINNIE erstellt.
+
+GRANT CREATE SESSION TO minnie;
+> Grant erfolgreich.
+```
+![](img/5121.png)
+
+Nun geben wir `mickey` die Berechtigung, `SELECT`-Statements auf der Tabelle `emp` auszuführen und diese auch weiterzugeben:
+```sql
+GRANT SELECT ON system.emp TO mickey WITH GRANT OPTION;
+> Grant erfolgreich.
+```
+![](img/5122.png)
+
+Als `mickey` geben wir die `SELECT`-Berechtigung an `minnie` weiter:
+```sql
+GRANT SELECT ON system.emp TO minnie;
+> Grant erfolgreich.
+```
+![](img/5123.png)
+
+Mit dem folgenden SQL-Statement lassen sich die Berechtigungseinträge für die Tabelle `emp` anzeigen:
+```sql
+SELECT * FROM USER_TAB_PRIVS WHERE TABLE_NAME = 'EMP';
+```
+![](img/5124.png)
+
+Der Benutzer `system` entzieht nun `mickey` die zuvor erteilte Berechtigung mit:
+```sql
+REVOKE SELECT ON emp FROM mickey;
+> Revoke erfolgreich.
+```
+![](img/5125.png)
+
+##### 5.1.3 Beobachtung
+Schauen wir uns jetzt nochmals die Berechtigungseinträge mit dem obigen Statement an, so stellen wir fest das keine Einträge mehr vorhanden sind.
+![](img/5131.png)
+
+Die mit `GRANT OPTION` verteilten Berechtigungen werden also kaskadierend widerrufen.
+![](img/5132.png)
 
 #### 5.2 Systemrechte
 
+##### 5.2.1 Was sind Systemrechte?
+Sie berechtigen zu Schemaoperationen konkret geht es hier um die Operationen `CREATE` , `ALTER` , `DROP` und die bereits bekannten Objektoperationen. 
+Diese Rechte können analog zu den Objektrechten pro Benutzer oder systemweit verteilt oder widerrufen werden.
+Zugriffe und Veränderungen an den eigenen Tabellen werden nicht explizit aufgeführt, es ist bereits durch die Architektur gegeben.
+
+##### 5.2.2 Das Experiment
+In diesem Experiment wollen wir untersuchen, ob weitergegebene Systemrechte kaskadierend entfernt werden.
+Dazu greifen wir auf die zuvor von `system` angelegten Benutzer `mickey` und `minnie` zurück.
+![](img/5221.png)
+
+Nun geben wir `mickey` die Berechtigung, in jedem Schema Tabellen zu erzeugen und diese auch weiterzugeben:
+```sql
+GRANT CREATE ANY TABLE TO mickey WITH ADMIN OPTION;
+> Grant erfolgreich.
+```
+![](img/5222.png)
+
+Als `mickey` erstellen wir eine Tabelle und geben diese `CREATE`-Berechtigung an `minnie` weiter:
+```sql
+CREATE TABLE mickey_friends(
+    friend_id NUMBER,
+    first_name VARCHAR2(50) NOT NULL,
+    last_name VARCHAR2(50) NOT NULL,
+    PRIMARY KEY(friend_id)
+);
+> Table MICKEY_FRIENDS erstellt.
+
+GRANT CREATE ANY TABLE TO minnie;
+> Grant erfolgreich.
+```
+![](img/5223.png)
+
+Als `minnie` erstellen wir ebenfalls eine Tabelle:
+```sql
+CREATE TABLE minnie_friends(
+    friend_id NUMBER,
+    first_name VARCHAR2(50) NOT NULL,
+    last_name VARCHAR2(50) NOT NULL,
+    PRIMARY KEY(friend_id)
+);
+> Table MINNIE_FRIENDS erstellt.
+```
+
+Mit dem folgenden SQL-Statement lassen sich die Systemrechte für `mickey` und `minnie` anzeigen:
+```sql
+SELECT * FROM SYS.DBA_SYS_PRIVS WHERE GRANTEE = 'MICKEY' OR GRANTEE = 'MINNIE';
+```
+![](img/5224.png)
+
+Der Benutzer `system` entzieht nun `mickey` die zuvor erteilte Berechtigung mit:
+```sql
+REVOKE CREATE ANY TABLE FROM mickey;
+> Revoke erfolgreich.
+```
+![](img/5225.png)
+
+
+##### 5.2.3 Beobachtung
+Schauen wir uns jetzt nochmals die Systemrechte mit dem obigen Statement an:
+![](img/5231.png)
+Anderst als bei den Objektrechten ist hier kein kaskadierendes Verhalten erkennbar, wenn man Systemrechte für `mickey` widerruft, bleiben jene von `minnie` bestehen.
+Es hat keinen Einfluss, ob die Berechtigung mittels `ADMIN OPTION` erteilt wurde.
+
+Mit dem folgenden SQL-Statement überprüfen wir zusätzlich, ob die jeweils erstellten Tabellen noch existieren:
+```sql
+SELECT OWNER, TABLE_NAME FROM ALL_TABLES WHERE OWNER = 'MICKEY' OR OWNER = 'MINNIE';
+```
+![](img/5232.png)
+Die Tabellen existieren nach wie vor und wurden nicht mit den Systemrechten zusammen entfernt.
+
+Die mit `ADMIN OPTION` verteilten Berechtigungen werden also **nicht** kaskadierend widerrufen:
+![](img/5233.png)
+
 #### 5.3 Rechte auf Views
+
+##### 5.3.1 Szenario
+Der Benutzer `scott` ermöglicht dem Benutzer `snoopy` Lesezugriff auf die `BONUS`-Tabelle allerdings ohne die `WITH GRANT OPTION`,
+damit kann `snoopy` die Berechtigung nicht weitergeben.
+
+##### 5.3.2 Das Experiment
+Der Benutzer `charlie` möchte nun über `snoopy` auf die `BONUS`-Tabelle zugreifen. Da `snoopy` die Berechtigung hat, neue Views zu erstellen,
+verfolgen wir diesen Ansatz weiter.
+![](img/5321.png)
+
+##### 5.3.3 Beobachtung
+Es funktioniert! :)

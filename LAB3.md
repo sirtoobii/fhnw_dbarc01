@@ -237,41 +237,41 @@ CREATE USER minnie IDENTIFIED BY minnieInDisneyLand;
 GRANT CREATE SESSION TO minnie;
 -- Grant erfolgreich.
 ```
-![](img/5121.png)
+![](img/5121.PNG)
 
 Nun geben wir `mickey` die Berechtigung, `SELECT`-Statements auf der Tabelle `emp` auszuführen und diese auch weiterzugeben:
 ```sql
 GRANT SELECT ON system.emp TO mickey WITH GRANT OPTION;
 -- Grant erfolgreich.
 ```
-![](img/5122.png)
+![](img/5122.PNG)
 
 Als `mickey` geben wir die `SELECT`-Berechtigung an `minnie` weiter:
 ```sql
 GRANT SELECT ON system.emp TO minnie;
 -- Grant erfolgreich.
 ```
-![](img/5123.png)
+![](img/5123.PNG)
 
 Mit dem folgenden SQL-Statement lassen sich die Berechtigungseinträge für die Tabelle `emp` anzeigen:
 ```sql
 SELECT * FROM USER_TAB_PRIVS WHERE TABLE_NAME = 'EMP';
 ```
-![](img/5124.png)
+![](img/5124.PNG)
 
 Der Benutzer `system` entzieht nun `mickey` die zuvor erteilte Berechtigung mit:
 ```sql
 REVOKE SELECT ON emp FROM mickey;
 --Revoke erfolgreich.
 ```
-![](img/5125.png)
+![](img/5125.PNG)
 
 ##### 5.1.3 Beobachtung
 Schauen wir uns jetzt nochmals die Berechtigungseinträge mit dem obigen Statement an, so stellen wir fest das keine Einträge mehr vorhanden sind.
-![](img/5131.png)
+![](img/5131.PNG)
 
 Die mit `GRANT OPTION` verteilten Berechtigungen werden also kaskadierend widerrufen.
-![](img/5132.png)
+![](img/5132.PNG)
 
 #### 5.2 Systemrechte
 
@@ -283,14 +283,14 @@ Zugriffe und Veränderungen an den eigenen Tabellen werden nicht explizit aufgef
 ##### 5.2.2 Das Experiment
 In diesem Experiment wollen wir untersuchen, ob weitergegebene Systemrechte kaskadierend entfernt werden.
 Dazu greifen wir auf die zuvor von `system` angelegten Benutzer `mickey` und `minnie` zurück.
-![](img/5221.png)
+![](img/5221.PNG)
 
 Nun geben wir `mickey` die Berechtigung, in jedem Schema Tabellen zu erzeugen und diese auch weiterzugeben:
 ```sql
 GRANT CREATE ANY TABLE TO mickey WITH ADMIN OPTION;
-> Grant erfolgreich.
+-- Grant erfolgreich.
 ```
-![](img/5222.png)
+![](img/5222.PNG)
 
 Als `mickey` erstellen wir eine Tabelle und geben diese `CREATE`-Berechtigung an `minnie` weiter:
 ```sql
@@ -305,7 +305,7 @@ CREATE TABLE mickey_friends(
 GRANT CREATE ANY TABLE TO minnie;
 --Grant erfolgreich.
 ```
-![](img/5223.png)
+![](img/5223.PNG)
 
 Als `minnie` erstellen wir ebenfalls eine Tabelle:
 ```sql
@@ -322,19 +322,19 @@ Mit dem folgenden SQL-Statement lassen sich die Systemrechte für `mickey` und `
 ```sql
 SELECT * FROM SYS.DBA_SYS_PRIVS WHERE GRANTEE = 'MICKEY' OR GRANTEE = 'MINNIE';
 ```
-![](img/5224.png)
+![](img/5224.PNG)
 
 Der Benutzer `system` entzieht nun `mickey` die zuvor erteilte Berechtigung mit:
 ```sql
 REVOKE CREATE ANY TABLE FROM mickey;
 --Revoke erfolgreich.
 ```
-![](img/5225.png)
+![](img/5225.PNG)
 
 
 ##### 5.2.3 Beobachtung
 Schauen wir uns jetzt nochmals die Systemrechte mit dem obigen Statement an:
-![](img/5231.png)
+![](img/5231.PNG)
 Anderst als bei den Objektrechten ist hier kein kaskadierendes Verhalten erkennbar, wenn man Systemrechte für `mickey` widerruft, bleiben jene von `minnie` bestehen.
 Es hat keinen Einfluss, ob die Berechtigung mittels `ADMIN OPTION` erteilt wurde.
 
@@ -342,11 +342,11 @@ Mit dem folgenden SQL-Statement überprüfen wir zusätzlich, ob die jeweils ers
 ```sql
 SELECT OWNER, TABLE_NAME FROM ALL_TABLES WHERE OWNER = 'MICKEY' OR OWNER = 'MINNIE';
 ```
-![](img/5232.png)
+![](img/5232.PNG)
 Die Tabellen existieren nach wie vor und wurden nicht mit den Systemrechten zusammen entfernt.
 
 Die mit `ADMIN OPTION` verteilten Berechtigungen werden also **nicht** kaskadierend widerrufen:
-![](img/5233.png)
+![](img/5233.PNG)
 
 #### 5.3 Rechte auf Views
 
@@ -357,7 +357,7 @@ damit kann `snoopy` die Berechtigung nicht weitergeben.
 ##### 5.3.2 Das Experiment
 Der Benutzer `charlie` möchte nun über `snoopy` auf die `BONUS`-Tabelle zugreifen. Da `snoopy` die Berechtigung hat, neue Views zu erstellen,
 verfolgen wir diesen Ansatz weiter.
-![](img/5321.png)
+![](img/5321.PNG)
 
 ##### 5.3.3 Beobachtung
 Es funktioniert! :)

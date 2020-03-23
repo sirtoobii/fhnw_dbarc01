@@ -7,7 +7,6 @@ Dieses Dokument ist im Rahmen des Moduls dbarc entstanden und geht auf die Frage
 Konkret befasst sich diese mit der Zugriffssteuerung und den Views.
 Für eine bessere Übersicht sind SQL-Befehle in Konsolenschrift und die Syntax zusätzlich in Grossbuchstaben beschrieben, ggf. werden diese mit weiterführenden Befehlen ergänzt.
 
-
 ### 2. Vorbereitung (als user system)
 
 ```sql
@@ -175,7 +174,7 @@ UPDATE sal_gt_1000_and_dept_eq_30_view SET DEPTNO = 20 WHERE EMPNO = 7654;
 Der vorherige Update funktioniert nun ohne Probleme. Die Schlussfolgerung daraus ist, `CHECK OPTION` funktioniert nur innerhalb
 ihrer view!
 
-### 4 Zugriffssteuerung mit User und Rollen
+### 4. Zugriffssteuerung mit User und Rollen
 #### 4.1 View erstellen
 ```sql
 CREATE OR REPLACE VIEW emp_summary_view
@@ -227,7 +226,7 @@ SELECT * FROM SCOTT.EMP;
 ![](img/screen001.png)
 
 
-### 5 Zugriffsrechte: Objekt- und Systemrechte
+### 5. Zugriffsrechte: Objekt- und Systemrechte
 
 #### 5.1 Objektrechte
 ##### 5.1.1 Was sind Objektrechte?

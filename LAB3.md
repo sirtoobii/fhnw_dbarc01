@@ -182,6 +182,7 @@ FROM  EMP JOIN DEPT D on EMP.DEPTNO = D.DEPTNO;
 SELECT * FROM emp_summary_view;
 ```
 ![](img/cead1377.png)
+
 #### 4.2 Rollen definieren
 
 ```sql
@@ -189,17 +190,20 @@ CREATE ROLE emp_user_role;
 CREATE ROLE emp_manager_role;
 ```
 #### 4.3 Den Rollen Rechte zuweisen
+
 ```sql
 GRANT SELECT ON emp_summary_view TO emp_user_role;
 GRANT SELECT,UPDATE,INSERT,ALTER,DELETE ON EMP TO emp_manager_role;
 GRANT CREATE VIEW TO emp_manager_role;
 ```
 #### 4.4 Den User Rollen zuweisen
+
 ```sql
 GRANT emp_user_role TO charlie;
 GRANT emp_manager_role TO snoopy;
 ```
 #### 4.5 Überprüfen Sie die beiden Rollen
+
 ##### 4.5.1 User `charlie`:
 ```sql
 SELECT * FROM SCOTT.emp_summary_view;
@@ -276,6 +280,7 @@ REVOKE SELECT ON scott.emp FROM mickey;
 
 ##### 5.1.3 Beobachtung
 Schauen wir uns jetzt nochmals die Berechtigungseinträge mit dem obigen Statement an, so stellen wir fest das keine Einträge mehr vorhanden sind.
+
 ![](img/5131.PNG)
 
 Die mit `GRANT OPTION` verteilten Berechtigungen werden also kaskadierend widerrufen.
@@ -296,6 +301,7 @@ Dazu greifen wir auf die zuvor von `system` angelegten Benutzer `mickey` und `mi
 ![](img/5221.PNG)
 
 Nun geben wir `mickey` die Berechtigung, in jedem Schema Tabellen zu erzeugen und diese auch weiterzugeben:
+
 ```sql
 GRANT CREATE ANY TABLE TO mickey WITH ADMIN OPTION;
 -- Grant erfolgreich.
@@ -344,7 +350,9 @@ REVOKE CREATE ANY TABLE FROM mickey;
 
 ##### 5.2.3 Beobachtung
 Schauen wir uns jetzt nochmals die Systemrechte mit dem obigen Statement an:
+
 ![](img/5231.PNG)
+
 Anderst als bei den Objektrechten ist hier kein kaskadierendes Verhalten erkennbar, wenn man Systemrechte für `mickey` widerruft, bleiben jene von `minnie` bestehen.
 Es hat keinen Einfluss, ob die Berechtigung mittels `ADMIN OPTION` erteilt wurde.
 

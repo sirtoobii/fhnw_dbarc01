@@ -1,0 +1,9 @@
+// Paste this into javascript console
+
+(function () {
+    var $ = document.querySelector.bind(document);
+    $('#readme').setAttribute('style', 'position:absolute;top:0;left:0;right:0;bottom:0;z-index:100;background-color:white');
+    $('#readme>article').setAttribute('style', 'border: none');
+    $('body').innerHTML = $('#readme').outerHTML;
+    window.print();
+})();

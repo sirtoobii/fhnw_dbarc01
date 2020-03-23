@@ -386,11 +386,14 @@ GRANT SELECT on scott.emp TO snoopy;
 CREATE OR REPLACE VIEW EMP_FOR_CHARLIE_VIEW AS SELECT EMPNO, ENAME, JOB, HIREDATE FROM SCOTT.EMP;
 ```
 
-Anschliessend geben wir diese View mit den selben Berechtigungen an `charlie` weiter:
+Anschliessend versuchen wir, diese View mit den selben Berechtigungen an `charlie` weiterzugeben:
 ```sql
 GRANT SELECT,INSERT,DELETE,UPDATE ON snoopy.EMP_FOR_CHARLIE_VIEW TO charlie;
--- GRANT erfolgreich.
+-- ORA-01031: insufficient privileges.
 ```
 
 ##### 5.3.3 Beobachtung
-Damit lässt dich die `GRANT OPTION` umgehen und die Berechtigungen weitergeben, allerdings müssen Referenzen auf Views separat erlaubt werden.
+Damit lässt sich die `GRANT OPTION` definitiv **nicht** umgehen und die Berechtigungen **nicht** weitergeben.
+Für das Experiment müsste also `snoopy` seine Rechte mit der `GRANT OPTION` erhalten, damit er die View an `charlie` weitergeben kann.
+
+![](img/5331.PNG)

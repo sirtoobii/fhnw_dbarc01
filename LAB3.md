@@ -1,3 +1,7 @@
+### Autoren
+- Tobias Bossert
+- Jilin Elavathingal
+
 ### 1. Einleitung
 Dieses Dokument ist im Rahmen des Moduls dbarc entstanden und geht auf die Fragenstellungen der Übung 3 ein.
 Konkret befasst sich diese mit der Zugriffssteuerung und den Views.

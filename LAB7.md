@@ -13,12 +13,123 @@ dbarc01 Index-Organized Tables mit einem zusätzlichen Sekundärindex
 #### 4.1 Studieren Sie die entsprechenden Abschnitte im Concepts Manual Kapitel 3.
 #### 4.2 Konsultieren Sie zusätzliche Quellen (z.B. Wikipedia).
 #### 4.3 Gehen Sie dabei folgenden Fragen nach:
-##### 4.3.1 Wie „funktionieren“ die Strukturen bzw. was sind Index Scans und welche Arten
-gibt es?
-##### 4.3.2 Wo werden die Strukturen mit Vorteil eingesetzt bzw. werden die Index Scans
-verwendet?
+##### 4.3.1 Wie „funktionieren“ die Strukturen bzw. was sind Index Scans und welche Arten gibt es?
+![](img_lab7/schema-index-organized-tables.gif)
+- Primary key indentifiziert eindeutig eine DB-Zeile, ein Primary Key Constraint muss definiert werden.
+- Ein pseudocolum `ROWID` erlaubt es, Sekundärindizes zu generieren.
+- Diese Struktur kann nicht in einem Tabellen-Cluster gespeichert werden.
+- Kann LOB (Large Object) aber keine `LONG` Typen aufnehmen.
+- Kann keine virtuellen Spalten enthalten.
+Die Index-Organized-Tabellen speichern die Daten in gleichen Strukturen ab und macht so eine rowid überflüssig.
+Der Sekundärindex ist ein Index auf einer Index-Organized-Tabelle und somit ein Index eines Indexes,
+er ist unabhängig vom Schemaobjekt und wird separat von der Tabelle abgespeichert.
+
+Die verschiedenen Index Scans:
+
+**Index Scan** - Abfrage einer Zeile, anhand der indexierten Spalten. Wenn nur indexierte Spalten abgefragt werden,
+werden die Daten direkt vom Index zurückgegeben, anstatt von der Tabelle.
+
+**Full Index Scan** - Abfrage von mehreren Zeilen, anhand der indexierten Spalten. Dies ist möglich, wenn die im
+`WHERE` Klausel verwendeten Spalten indexiert sind. Dieser Scan macht ein Sorting überflüssig, da die Daten
+nach dem Index-Key sortiert werden. (Der Suchbereich wird massgeblich kleiner.)
+```sql
+SELECT department_id, last_name, salary 
+FROM   employees
+WHERE  salary > 5000 
+ORDER BY department_id, last_name;
+
+-- department_id, last_name and salary are a composite key in an index.
+
+ 50 Atkinson  2800 rowid
+ 60 Austin    4800 rowid
+ 70 Baer     10000 rowid
+ 80 Abel     11000 rowid
+ 80 Ande      6400 rowid
+110 Austin    7200 rowid
+```
+
+**Fast Full Index Scan** - Eigentlich ein Full Index Scan, nur dass alle Daten im Index verfügbar sind, ohne auf die
+Tabelle zugreifen zu müssen. Die Blöcke werden in keiner bestimmten Reihenfolge gelesen. Die Voraussetzung ist,
+dass der Index alle im Query verwendeten Spalten enthält und die Zeilen keine `NULL` Werte in indexierten Spalten
+haben. Also muss mindestens eine Spalte ein `NOT NULL` constraint haben oder mit einem Prädikat diese Zeilen
+heraus gefiltert werden.
+```sql
+SELECT last_name, salary 
+FROM   employees;
+
+-- last_name column has a not null constraint.
+
+Baida    2900 rowid
+Zlotkey 10500 rowid
+Austin   7200 rowid
+Baer    10000 rowid
+Atkinson 2800 rowid
+Austin   4800 rowid
+```
+
+**Index Range Scan** - Das ist ein sortierter Scan von indexierten Spalten, dabei müssen mind. eine oder mehrere
+Spalten in der Bedingung vorhanden sein.
+```sql
+WHERE last_name LIKE 'A%'
+
+-- last_name is indexed and names starting with A
+
+Abel     rowid
+Ande     rowid
+Atkinson rowid
+Austin   rowid
+Austin   rowid
+Baer     rowid
+```
+
+**Index Unique Scan** - Hier wird eine rowid direkt mit einem Index-Key gemappt. Der Scan wird nach dem ersten Match
+abgebrochen.
+```sql
+SELECT *
+FROM   employees
+WHERE  employee_id = 5;
+
+-- employee_id column is the primary key and is indexed with entries
+
+1 rowid
+2 rowid
+4 rowid
+5 rowid
+6 rowid
+```
+
+**Index Skip Scan** - (TODO)
+```sql
+SELECT * 
+FROM   sh.customers 
+WHERE  cust_email = 'Abbey@company.com';
+
+-- column cust_gender whose values are either M or F
+-- composite index exists on the columns (cust_gender, cust_email)
+
+F Wolf@company.com      rowid
+F Wolsey@company.com    rowid
+F Wood@company.com      rowid
+F Woodman@company.com   rowid
+F Yang@company.com      rowid
+F Zimmerman@company.com rowid
+M Abbassi@company.com   rowid
+M Abbey@company.com     rowid
+```
+##### 4.3.2 Wo werden die Strukturen mit Vorteil eingesetzt bzw. werden die Index Scans verwendet?
+Bei Suchanfragen über eine grosse Datenmenge, kann diese Struktur das Ergebnis schon erheblich verkleinern,
+und damit die Performance steigern.
+
+(Verwendung der Index Scans siehe 4.3.1)
 ##### 4.3.3 Wann sind die Strukturen ungeeignet bzw. werden die Index Scans nicht eingesetzt?
+Diese Struktur ist ungeeignet, wenn die Ergebnisdaten über mehrere Tabellen und über Sichten erstellt werden.
+Ebenfalls nicht optimal, wenn die Indexierung mehr Overhead generiert als Nutzen, z.B. Daten sehr oft und dynamisch
+verändert werden.
+
 ##### 4.3.4 Wie werden die Strukturen physisch dargestellt?
+(Darstellung unter 4.3.1)
+Man kann die Darstellung mit einem Mapfile oder einem Dictionary vergleichen.
+
 #### 4.4 Beschreiben Sie ein typisches Beispiel und realisieren Sie es in Ihrer Datenbank.
 #### 4.5 Zeigen Sie, mit welchen Abfragen die Strukturen bzw. die Index Scans durch den
 Optimizer tatsächlich verwendet werden und wann nicht.

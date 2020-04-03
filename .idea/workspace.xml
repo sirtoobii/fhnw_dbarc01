@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="9cac48aa-40db-4bf0-991b-6b2f4a6c0cb3" name="Default Changelist" comment="Tiny adjustments" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="DatabaseView">
+    <option name="SHOW_INTERMEDIATE" value="true" />
+    <option name="GROUP_DATA_SOURCES" value="true" />
+    <option name="GROUP_SCHEMA" value="true" />
+    <option name="GROUP_CONTENTS" value="false" />
+    <option name="SORT_POSITIONED" value="false" />
+    <option name="SHOW_EMPTY_GROUPS" value="false" />
+    <option name="AUTO_SCROLL_FROM_SOURCE" value="false" />
+    <option name="HIDDEN_KINDS">
+      <set />
+    </option>
+    <expand>
+      <path>
+        <item name="Database" type="3277223f:DatabaseStructure$DbRootGroup" />
+        <item name="dbarc_charlie" type="feb32156:DbDataSourceImpl" />
+      </path>
+      <path>
+        <item name="Database" type="3277223f:DatabaseStructure$DbRootGroup" />
+        <item name="dbarc_charlie" type="feb32156:DbDataSourceImpl" />
+        <item name="CHARLIE: schema" type="3abd1b6a:OraImplModel$Schema" />
+      </path>
+      <path>
+        <item name="Database" type="3277223f:DatabaseStructure$DbRootGroup" />
+        <item name="dbarc_scott" type="feb32156:DbDataSourceImpl" />
+      </path>
+      <path>
+        <item name="Database" type="3277223f:DatabaseStructure$DbRootGroup" />
+        <item name="dbarc_scott" type="feb32156:DbDataSourceImpl" />
+        <item name="SCOTT: schema" type="3abd1b6a:OraImplModel$Schema" />
+      </path>
+      <path>
+        <item name="Database" type="3277223f:DatabaseStructure$DbRootGroup" />
+        <item name="dbarc_scott" type="feb32156:DbDataSourceImpl" />
+        <item name="SCOTT: schema" type="3abd1b6a:OraImplModel$Schema" />
+        <item name="tables" type="d4e8921:DatabaseStructure$FamilyGroup" />
+      </path>
+    </expand>
+    <select />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="master" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="UPDATE_TYPE" value="MERGE" />
+  </component>
+  <component name="MavenImportPreferences">
+    <option name="importingSettings">
+      <MavenImportingSettings>
+        <option name="vmOptionsForImporter" value="-Xmx768m" />
+      </MavenImportingSettings>
+    </option>
+  </component>
+  <component name="ProjectId" id="1Ysx2cWu0PEmnHi72H5Atr7hthA" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showExcludedFiles" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="DatabaseDriversLRU" value="oracle" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="android.sdk.path" value="$USER_HOME$/opt/android" />
+    <property name="aspect.path.notification.shown" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="settings.editor.selected.configurable" value="preferences.editor" />
+  </component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/img" />
+    </key>
+  </component>
+  <component name="ServiceViewManager">
+    <option name="viewStates">
+      <list>
+        <serviceView>
+          <treeState>
+            <expand>
+              <path>
+                <item name="services root" type="e789fda9:ObjectUtils$Sentinel" />
+                <item name="root:dbarc_charlie" type="7427dc5b:ServiceModel$ServiceGroupNode" />
+              </path>
+              <path>
+                <item name="services root" type="e789fda9:ObjectUtils$Sentinel" />
+                <item name="root:dbarc_scott" type="7427dc5b:ServiceModel$ServiceGroupNode" />
+              </path>
+              <path>
+                <item name="services root" type="e789fda9:ObjectUtils$Sentinel" />
+                <item name="root:dbarc_scott" type="7427dc5b:ServiceModel$ServiceGroupNode" />
+                <item name="com.intellij.database.console.session.MessageBusSession@39528eb" type="9fbbdea:ServiceModel$ServiceNode" />
+              </path>
+              <path>
+                <item name="services root" type="e789fda9:ObjectUtils$Sentinel" />
+                <item name="root:dbarc_snoopy" type="7427dc5b:ServiceModel$ServiceGroupNode" />
+              </path>
+              <path>
+                <item name="services root" type="e789fda9:ObjectUtils$Sentinel" />
+                <item name="root:dbarc_snoopy" type="7427dc5b:ServiceModel$ServiceGroupNode" />
+                <item name="com.intellij.database.console.session.MessageBusSession@f810ac1" type="9fbbdea:ServiceModel$ServiceNode" />
+              </path>
+              <path>
+                <item name="services root" type="e789fda9:ObjectUtils$Sentinel" />
+                <item name="root:dbarc_sys" type="7427dc5b:ServiceModel$ServiceGroupNode" />
+              </path>
+              <path>
+                <item name="services root" type="e789fda9:ObjectUtils$Sentinel" />
+                <item name="root:dbarc_sys" type="7427dc5b:ServiceModel$ServiceGroupNode" />
+                <item name="com.intellij.database.console.session.MessageBusSession@222fb689" type="9fbbdea:ServiceModel$ServiceNode" />
+              </path>
+            </expand>
+            <select />
+          </treeState>
+        </serviceView>
+      </list>
+    </option>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="9cac48aa-40db-4bf0-991b-6b2f4a6c0cb3" name="Default Changelist" comment="" />
+      <created>1583744896689</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1583744896689</updated>
+      <workItem from="1583744897845" duration="259000" />
+      <workItem from="1583745168046" duration="3158000" />
+      <workItem from="1583751426757" duration="9000" />
+      <workItem from="1584188415748" duration="3183000" />
+      <workItem from="1584267226541" duration="682000" />
+      <workItem from="1584344889693" duration="3704000" />
+      <workItem from="1584361188461" duration="7000" />
+      <workItem from="1584880173154" duration="3032000" />
+      <workItem from="1584890100827" duration="1363000" />
+      <workItem from="1584947788411" duration="3639000" />
+      <workItem from="1584986700428" duration="243000" />
+      <workItem from="1585213907657" duration="10000" />
+    </task>
+    <task id="LOCAL-00001" summary="Task 4">
+      <created>1584348704944</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1584348704944</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Updated Task 3, finished Task 4">
+      <created>1584883365696</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1584883365696</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Merged aufgabe5">
+      <created>1584890668877</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1584890668877</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Fixed images">
+      <created>1584890899479</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1584890899479</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Small changes (mostly formatting)">
+      <created>1584950811474</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1584950811474</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="1" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Task 4" />
+    <MESSAGE value="Updated Task 3, finished Task 4" />
+    <MESSAGE value="Merged aufgabe5" />
+    <MESSAGE value="Fixed images" />
+    <MESSAGE value="Small changes (mostly formatting)" />
+    <option name="LAST_COMMIT_MESSAGE" value="Small changes (mostly formatting)" />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="899" y="381" width="800" height="684" key="#SQL_Dialects" timestamp="1583744999658">
+      <screen x="48" y="0" width="2512" height="1440" />
+    </state>
+    <state x="899" y="381" width="800" height="684" key="#SQL_Dialects/48.0.2512.1440@48.0.2512.1440" timestamp="1583744999658" />
+    <state x="3210" y="318" width="671" height="570" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1584347790482">
+      <screen x="2560" y="0" width="1920" height="1200" />
+    </state>
+    <state x="3210" y="318" width="671" height="570" key="#com.intellij.execution.impl.EditConfigurationsDialog/48.0.2512.1440/2560.0.1920.1200@2560.0.1920.1200" timestamp="1584347790482" />
+    <state x="899" y="381" width="800" height="684" key="#com.intellij.execution.impl.EditConfigurationsDialog/48.0.2512.1440@48.0.2512.1440" timestamp="1583744978723" />
+    <state x="3115" y="143" width="848" height="921" key="CommitChangelistDialog2" timestamp="1584986981404">
+      <screen x="2560" y="0" width="1920" height="1200" />
+    </state>
+    <state x="3115" y="143" width="848" height="921" key="CommitChangelistDialog2/48.0.2512.1440/2560.0.1920.1200@2560.0.1920.1200" timestamp="1584986981404" />
+    <state x="3367" y="467" width="399" height="327" key="GrepConsoleSound" timestamp="1584348386432">
+      <screen x="2560" y="0" width="1920" height="1200" />
+    </state>
+    <state x="3367" y="467" width="399" height="327" key="GrepConsoleSound/48.0.2512.1440/2560.0.1920.1200@2560.0.1920.1200" timestamp="1584348386432" />
+    <state x="1104" y="560" width="399" height="327" key="GrepConsoleSound/48.0.2512.1440@48.0.2512.1440" timestamp="1583747372000" />
+    <state width="1257" height="323" key="GridCell.Tab.0.bottom" timestamp="1584950749025">
+      <screen x="2560" y="0" width="1920" height="1200" />
+    </state>
+    <state width="1257" height="323" key="GridCell.Tab.0.bottom/48.0.2512.1440/2560.0.1920.1200@2560.0.1920.1200" timestamp="1584950749025" />
+    <state width="826" height="402" key="GridCell.Tab.0.bottom/48.0.2512.1440@48.0.2512.1440" timestamp="1583748074294" />
+    <state width="1257" height="323" key="GridCell.Tab.0.center" timestamp="1584950749024">
+      <screen x="2560" y="0" width="1920" height="1200" />
+    </state>
+    <state width="1257" height="323" key="GridCell.Tab.0.center/48.0.2512.1440/2560.0.1920.1200@2560.0.1920.1200" timestamp="1584950749024" />
+    <state width="826" height="402" key="GridCell.Tab.0.center/48.0.2512.1440@48.0.2512.1440" timestamp="1583748074293" />
+    <state width="1257" height="323" key="GridCell.Tab.0.left" timestamp="1584950749024">
+      <screen x="2560" y="0" width="1920" height="1200" />
+    </state>
+    <state width="1257" height="323" key="GridCell.Tab.0.left/48.0.2512.1440/2560.0.1920.1200@2560.0.1920.1200" timestamp="1584950749024" />
+    <state width="826" height="402" key="GridCell.Tab.0.left/48.0.2512.1440@48.0.2512.1440" timestamp="1583748074292" />
+    <state width="1257" height="323" key="GridCell.Tab.0.right" timestamp="1584950749024">
+      <screen x="2560" y="0" width="1920" height="1200" />
+    </state>
+    <state width="1257" height="323" key="GridCell.Tab.0.right/48.0.2512.1440/2560.0.1920.1200@2560.0.1920.1200" timestamp="1584950749024" />
+    <state width="826" height="402" key="GridCell.Tab.0.right/48.0.2512.1440@48.0.2512.1440" timestamp="1583748074293" />
+    <state x="793" y="355" width="1022" height="737" key="SettingsEditor" timestamp="1583748167630">
+      <screen x="48" y="0" width="2512" height="1440" />
+    </state>
+    <state x="793" y="355" width="1022" height="737" key="SettingsEditor/48.0.2512.1440@48.0.2512.1440" timestamp="1583748167630" />
+    <state x="3139" y="336" width="800" height="535" key="Vcs.Push.Dialog.v2" timestamp="1584986982993">
+      <screen x="2560" y="0" width="1920" height="1200" />
+    </state>
+    <state x="3139" y="336" width="800" height="535" key="Vcs.Push.Dialog.v2/48.0.2512.1440/2560.0.1920.1200@2560.0.1920.1200" timestamp="1584986982993" />
+    <state x="3263" y="183" width="552" height="841" key="com.intellij.database.view.ui.AbstractDbRefactoringDialog" timestamp="1584881318171">
+      <screen x="2560" y="0" width="1920" height="1200" />
+    </state>
+    <state x="3263" y="183" width="552" height="841" key="com.intellij.database.view.ui.AbstractDbRefactoringDialog/48.0.2512.1440/2560.0.1920.1200@2560.0.1920.1200" timestamp="1584881318171" />
+    <state x="3316" y="520" width="455" height="167" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1584986705037">
+      <screen x="2560" y="0" width="1920" height="1200" />
+    </state>
+    <state x="3316" y="520" width="455" height="167" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2/48.0.2512.1440/2560.0.1920.1200@2560.0.1920.1200" timestamp="1584986705037" />
+    <state x="3207" y="269" width="672" height="678" key="search.everywhere.popup" timestamp="1584189717393">
+      <screen x="2560" y="0" width="1920" height="1200" />
+    </state>
+    <state x="3207" y="269" width="672" height="678" key="search.everywhere.popup/48.0.2512.1440/2560.0.1920.1200@2560.0.1920.1200" timestamp="1584189717393" />
+  </component>
+</project>

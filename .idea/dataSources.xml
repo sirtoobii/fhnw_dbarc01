@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
+    <data-source source="LOCAL" name="dbarc_sys" uuid="9ed4f50b-db87-485b-9c3f-f8a3dfc91256">
+      <driver-ref>oracle</driver-ref>
+      <synchronize>true</synchronize>
+      <auto-commit>false</auto-commit>
+      <jdbc-driver>oracle.jdbc.OracleDriver</jdbc-driver>
+      <jdbc-url>jdbc:oracle:thin:@hades.cs.technik.fhnw.ch:1521:dbarc01</jdbc-url>
+    </data-source>
+    <data-source source="LOCAL" name="dbarc_scott" uuid="aaac1842-693f-48ea-a317-42aae59389bd">
+      <driver-ref>oracle</driver-ref>
+      <synchronize>true</synchronize>
+      <auto-commit>false</auto-commit>
+      <jdbc-driver>oracle.jdbc.OracleDriver</jdbc-driver>
+      <jdbc-url>jdbc:oracle:thin:@hades.cs.technik.fhnw.ch:1521:dbarc01</jdbc-url>
+    </data-source>
+    <data-source source="LOCAL" name="dbarc_charlie" uuid="07488d1c-46f5-4160-a054-d4a35d43e308">
+      <driver-ref>oracle</driver-ref>
+      <synchronize>true</synchronize>
+      <auto-commit>false</auto-commit>
+      <jdbc-driver>oracle.jdbc.OracleDriver</jdbc-driver>
+      <jdbc-url>jdbc:oracle:thin:@hades.cs.technik.fhnw.ch:1521:dbarc01</jdbc-url>
+    </data-source>
+    <data-source source="LOCAL" name="dbarc_snoopy" uuid="115f0bd7-15e9-4f28-b794-c6eb47d41354">
+      <driver-ref>oracle</driver-ref>
+      <synchronize>true</synchronize>
+      <auto-commit>false</auto-commit>
+      <jdbc-driver>oracle.jdbc.OracleDriver</jdbc-driver>
+      <jdbc-url>jdbc:oracle:thin:@hades.cs.technik.fhnw.ch:1521:dbarc01</jdbc-url>
+    </data-source>
+  </component>
+</project>

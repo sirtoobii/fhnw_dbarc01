@@ -120,7 +120,7 @@ M Abbey@company.com     rowid
 ```
 ##### 4.3.2 Wo werden die Strukturen mit Vorteil eingesetzt bzw. werden die Index Scans verwendet?
 Bei Suchanfragen über eine grosse Datenmenge, kann diese Struktur das Ergebnis schon erheblich verkleinern,
-und damit die Performance steigern. Dies ist vor allem der Fall von die darunterliegende Tabelle primär gelesen werden muss.
+und damit die Performance steigern. Dies ist vor allem der Fall wenn die darunterliegende Tabelle primär gelesen werden muss.
 
 (Verwendung der Index Scans siehe 4.3.1)
 ##### 4.3.3 Wann sind die Strukturen ungeeignet bzw. werden die Index Scans nicht eingesetzt?

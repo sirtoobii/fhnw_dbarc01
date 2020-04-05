@@ -54,8 +54,8 @@ dass der Index alle im Query verwendeten Spalten enthält und die Zeilen keine `
 haben. Also muss mindestens eine Spalte ein `NOT NULL` constraint haben oder mit einem Prädikat diese Zeilen
 heraus gefiltert werden.
 ```sql
-SELECT last_name, salary 
-FROM   employees;
+SELECT ename, sal 
+FROM   scott.emp;
 
 -- last_name column has a not null constraint.
 
@@ -69,6 +69,7 @@ Austin   4800 rowid
 
 **Index Range Scan** - Das ist ein sortierter Scan von indexierten Spalten, dabei müssen mind. eine oder mehrere
 Spalten in der Bedingung vorhanden sein.
+Kann ein zusätzlicher Sekundärindex verwendet werden um ein Ergebnisbereich einzugrenzen?
 ```sql
 WHERE last_name LIKE 'A%'
 
@@ -98,7 +99,8 @@ WHERE  employee_id = 5;
 6 rowid
 ```
 
-**Index Skip Scan** - (TODO)
+**Index Skip Scan** - Die verschiedenen Indizes werden verwendet, um verschiedene Suchpfade zu generieren. Dabei kann der Optimizer
+gezielt die Reihenfolge der Indizes anpassen.
 ```sql
 SELECT * 
 FROM   sh.customers 
@@ -131,9 +133,33 @@ verändert werden.
 Man kann die Darstellung mit einem Mapfile oder einem Dictionary vergleichen.
 
 #### 4.4 Beschreiben Sie ein typisches Beispiel und realisieren Sie es in Ihrer Datenbank.
-#### 4.5 Zeigen Sie, mit welchen Abfragen die Strukturen bzw. die Index Scans durch den
-Optimizer tatsächlich verwendet werden und wann nicht.
+Auf der `EMP` Tabelle erstellen wir einen Sekundärindex, damit die Buchhaltung schneller nach den Lohnklassen filtern kann.
+```sql
+CREATE INDEX EMP_SAL_INDEX ON SCOTT.EMP(SAL);
+```
 
+#### 4.5 Zeigen Sie, mit welchen Abfragen die Strukturen bzw. die Index Scans durch den Optimizer tatsächlich verwendet werden und wann nicht.
+```sql
+SELECT * FROM SCOTT.EMP WHERE SAL >= 1000 AND SAL < 3000;
+
+Plan hash value: 812126833 
+-----------------------------------------------------------------------------------------------------
+| Id  | Operation                           | Name          | Rows  | Bytes | Cost (%CPU)| Time     |
+-----------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT                    |               |     9 |   864 |     2   (0)| 00:00:01 |
+|   1 |  TABLE ACCESS BY INDEX ROWID BATCHED| EMP           |     9 |   864 |     2   (0)| 00:00:01 |
+|*  2 |   INDEX RANGE SCAN                  | EMP_SAL_INDEX |     9 |       |     1   (0)| 00:00:01 |
+-----------------------------------------------------------------------------------------------------
+ 
+Predicate Information (identified by operation id):
+---------------------------------------------------
+ 
+   2 - access("SAL">=1000 AND "SAL"<3000)
+ 
+Note
+-----
+   - dynamic statistics used: dynamic sampling (level=2)
+```
 ### 5 Hinweise
 Ausführungspläne können Sie anzeigen und damit ermittlen, mit welchen Strukturen und
 Scans Anfragen durchgeführt werden.

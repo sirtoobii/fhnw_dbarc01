@@ -120,13 +120,16 @@ M Abbey@company.com     rowid
 ```
 ##### 4.3.2 Wo werden die Strukturen mit Vorteil eingesetzt bzw. werden die Index Scans verwendet?
 Bei Suchanfragen über eine grosse Datenmenge, kann diese Struktur das Ergebnis schon erheblich verkleinern,
-und damit die Performance steigern.
+und damit die Performance steigern. Dies ist vor allem der Fall von die darunterliegende Tabelle primär gelesen werden muss.
 
 (Verwendung der Index Scans siehe 4.3.1)
 ##### 4.3.3 Wann sind die Strukturen ungeeignet bzw. werden die Index Scans nicht eingesetzt?
-Diese Struktur ist ungeeignet, wenn die Ergebnisdaten über mehrere Tabellen und über Sichten erstellt werden.
-Ebenfalls nicht optimal, wenn die Indexierung mehr Overhead generiert als Nutzen, z.B. Daten sehr oft und dynamisch
-verändert werden.
+Die `logical rowids` enthalten auch immer einen `physical guess` welcher auf die physikalische rowid des records zeigt. 
+Dieser ist allerdings nicht dynamisch und wird bei Erstellung des Sekundär-Indexes erstellt. Werden nun Zeilen in die Tabelle eingefügt oder
+gelöscht stimmt dieser Zeiger nicht mehr. Dies hat zur Folge, das der falsche Block geladen wird, wieder verworfen wird und ein
+`unique index scan` über den Primary-Key gemacht wird. Der Index müsste in dem Fall aktualisiert werden.
+Bei Tabellen mit vielen Zeilen inserts oder drops ist also ein Sekundärindex nur bedingt hilfreich.
+
 
 ##### 4.3.4 Wie werden die Strukturen physisch dargestellt?
 (Darstellung unter 4.3.1)
@@ -142,6 +145,7 @@ CREATE INDEX EMP_SAL_INDEX ON SCOTT.EMP(SAL);
 ```sql
 SELECT * FROM SCOTT.EMP WHERE SAL >= 1000 AND SAL < 3000;
 
+/**
 Plan hash value: 812126833 
 -----------------------------------------------------------------------------------------------------
 | Id  | Operation                           | Name          | Rows  | Bytes | Cost (%CPU)| Time     |
@@ -159,6 +163,7 @@ Predicate Information (identified by operation id):
 Note
 -----
    - dynamic statistics used: dynamic sampling (level=2)
+**/
 ```
 ### 5 Hinweise
 Ausführungspläne können Sie anzeigen und damit ermittlen, mit welchen Strukturen und
@@ -166,7 +171,7 @@ Scans Anfragen durchgeführt werden.
 #### 5.1 Statistiken erheben z.B. für Tabelle emp im Schema scott mit
 ```sql
 BEGIN
-DBMS_STATS.GATHER_TABLE_STATS('scott','emp')
+DBMS_STATS.GATHER_TABLE_STATS('scott','emp');
 END;
 ```
 #### 5.2 Ausführungsplans ermitteln für ein SELECT-Statement mit folgendem Muster

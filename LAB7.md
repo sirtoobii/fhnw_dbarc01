@@ -16,7 +16,7 @@ dbarc01 Index-Organized Tables mit einem zusätzlichen Sekundärindex
 ##### 4.3.1 Wie „funktionieren“ die Strukturen bzw. was sind Index Scans und welche Arten gibt es?
 ![](img_lab7/schema-index-organized-tables.gif)
 - Primary key indentifiziert eindeutig eine DB-Zeile, ein Primary Key Constraint muss definiert werden.
-- Ein pseudocolum `ROWID` erlaubt es, Sekundärindizes zu generieren. Im Gegensatz zum Heap-Organized table ist diese allerding logisch. Allerdings ist auch in ihr ein `physical guess` enthalten.
+- Ein pseudocolum `ROWID` erlaubt es, Sekundärindizes zu generieren. Im Gegensatz zum Heap-Organized table ist diese allerding logisch. Nichtsdestotrotz, ist auch in ihr ein `physical guess` enthalten.
 - Diese Struktur kann nicht in einem Tabellen-Cluster gespeichert werden.
 - Kann LOB (Large Object) aber keine `LONG` Typen aufnehmen.
 - Kann keine virtuellen Spalten enthalten.

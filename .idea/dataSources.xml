@@ -29,5 +29,12 @@
       <jdbc-driver>oracle.jdbc.OracleDriver</jdbc-driver>
       <jdbc-url>jdbc:oracle:thin:@hades.cs.technik.fhnw.ch:1521:dbarc01</jdbc-url>
     </data-source>
+    <data-source source="LOCAL" name="sql_tuneing_server" uuid="ba9de4cc-a313-4e53-b8e7-744e64aaf987">
+      <driver-ref>oracle</driver-ref>
+      <synchronize>true</synchronize>
+      <auto-commit>false</auto-commit>
+      <jdbc-driver>oracle.jdbc.OracleDriver</jdbc-driver>
+      <jdbc-url>jdbc:oracle:thin:@//hades.cs.technik.fhnw.ch:1521/hades19c.hades.fhnw.ch</jdbc-url>
+    </data-source>
   </component>
 </project>

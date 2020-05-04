@@ -199,7 +199,7 @@ da der Filter komplexer ist.
 ### 4.2.4 Partial point query (weighed)
 ```sql
 EXPLAIN PLAN FOR
-    SELECT * FROM orders WHERE o_custkey*3 = 194606 AND o_clerk = 'Clerk#000000286';
+    SELECT * FROM orders WHERE o_custkey*2 = 194606 AND o_clerk = 'Clerk#000000286';
 SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
 -- output
 /*
@@ -218,7 +218,6 @@ Predicate Information (identified by operation id):
    1 - filter("O_CUSTKEY"*2=194606 AND "O_CLERK"='Clerk#000000286')
 */
 ```
---> Frage was hat das gewichten hier für einen Effekt?
 
 ### 4.2.5 Range query
 ```sql
@@ -313,7 +312,79 @@ Predicate Information (identified by operation id):
 
 ## 4.3 Join
 ### 4.3.1 Natural join
+```sql
+EXPLAIN PLAN FOR
+    SELECT * FROM orders, customers WHERE o_custkey = c_custkey;
+SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
+-- output
+/*
+Plan hash value: 3042513348
+ 
+----------------------------------------------------------------------------------------
+| Id  | Operation          | Name      | Rows  | Bytes |TempSpc| Cost (%CPU)| Time     |
+----------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT   |           |  1500K|   386M|       | 17493   (1)| 00:00:01 |
+|*  1 |  HASH JOIN         |           |  1500K|   386M|    24M| 17493   (1)| 00:00:01 |
+|   2 |   TABLE ACCESS FULL| CUSTOMERS |   150K|    22M|       |   950   (1)| 00:00:01 |
+|   3 |   TABLE ACCESS FULL| ORDERS    |  1500K|   158M|       |  6599   (1)| 00:00:01 |
+----------------------------------------------------------------------------------------
+ 
+Predicate Information (identified by operation id):
+---------------------------------------------------
+ 
+   1 - access("O_CUSTKEY"="C_CUSTKEY")
+*/
+```
 ### 4.3.2 Mit zusätzlicher Selektion
+```sql
+EXPLAIN PLAN FOR
+    SELECT * FROM orders, customers WHERE o_custkey = c_custkey AND o_orderkey < 100;
+SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
+-- output
+/*
+Plan hash value: 23084738
+ 
+--------------------------------------------------------------------------------
+| Id  | Operation          | Name      | Rows  | Bytes | Cost (%CPU)| Time     |
+--------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT   |           |    25 |  6750 |  7544   (1)| 00:00:01 |
+|*  1 |  HASH JOIN         |           |    25 |  6750 |  7544   (1)| 00:00:01 |
+|*  2 |   TABLE ACCESS FULL| ORDERS    |    25 |  2775 |  6594   (1)| 00:00:01 |
+|   3 |   TABLE ACCESS FULL| CUSTOMERS |   150K|    22M|   950   (1)| 00:00:01 |
+--------------------------------------------------------------------------------
+ 
+Predicate Information (identified by operation id):
+---------------------------------------------------
+ 
+   1 - access("O_CUSTKEY"="C_CUSTKEY")
+   2 - filter("O_ORDERKEY"<100)
+*/
+```
+Spielen Varianten der Formulierung eine Rolle?
+```sql
+EXPLAIN PLAN FOR
+    SELECT * FROM orders INNER JOIN customers ON o_custkey = c_custkey WHERE o_orderkey < 100;
+SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
+-- output
+/*
+Plan hash value: 23084738
+ 
+--------------------------------------------------------------------------------
+| Id  | Operation          | Name      | Rows  | Bytes | Cost (%CPU)| Time     |
+--------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT   |           |    25 |  6750 |  7544   (1)| 00:00:01 |
+|*  1 |  HASH JOIN         |           |    25 |  6750 |  7544   (1)| 00:00:01 |
+|*  2 |   TABLE ACCESS FULL| ORDERS    |    25 |  2775 |  6594   (1)| 00:00:01 |
+|   3 |   TABLE ACCESS FULL| CUSTOMERS |   150K|    22M|   950   (1)| 00:00:01 |
+--------------------------------------------------------------------------------
+ 
+Predicate Information (identified by operation id):
+---------------------------------------------------
+ 
+   1 - access("O_CUSTKEY"="C_CUSTKEY")
+   2 - filter("ORDERS"."O_ORDERKEY"<100)
+/*
+```
 
 # 5. Versuche mit Index
 Indizies erstellen:
@@ -404,8 +475,78 @@ SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typica
 
 ## 5.3 Join
 ### 5.3.1 Natural join
+```sql
+EXPLAIN PLAN FOR
+    SELECT * FROM orders, customers WHERE o_custkey = c_custkey AND o_orderkey < 100;
+SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
+-- output
+```
 ### 5.3.2 Mit zusätzlicher Selektion
-
+```sql
+EXPLAIN PLAN FOR
+    SELECT * FROM orders, customers WHERE o_custkey = c_custkey AND o_orderkey < 100;
+SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
+-- output
+```
+Mit Zusätzlichem Index
+```sql
+CREATE INDEX c_custkey_ix ON customer(c_custkey);
+EXPLAIN PLAN FOR
+    SELECT * FROM orders, customers WHERE o_custkey = c_custkey;
+SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
+```
+Erzwingen eines nested Loop Joins
+```sql
+EXPLAIN PLAN FOR
+    SELECT /*+ use_nl_with_index */ * FROM orders, customers WHERE o_custkey = c_custkey;
+SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
+```
+Erzwingen eines anderen als den Hash-Join
+```sql
+EXPLAIN PLAN FOR
+    SELECT /*+ use_merge(e,b) parallel(e, 4) parallel(b, 4) */ * FROM orders, customers WHERE o_custkey = c_custkey;
+SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
+```
 # 6. Quiz
+Benchmark-query:
+```sql
+EXPLAIN PLAN FOR
+    SELECT COUNT(*)
+    FROM parts, partsupps, lineitems
+    WHERE p_partkey=ps_partkey
+    AND ps_partkey=l_partkey
+    AND ps_suppkey=l_suppkey
+    AND ( (ps_suppkey = 2444 AND p_type = 'MEDIUM ANODIZED BRASS')
+    OR (ps_suppkey = 2444 AND p_type = 'MEDIUM BRUSHED COPPER') );
+SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
+-- output no indices at all
+/*
+Plan hash value: 1031822529
+ 
+----------------------------------------------------------------------------------
+| Id  | Operation            | Name      | Rows  | Bytes | Cost (%CPU)| Time     |
+----------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT     |           |     1 |    45 | 35220   (1)| 00:00:02 |
+|   1 |  SORT AGGREGATE      |           |     1 |    45 |            |          |
+|*  2 |   HASH JOIN          |           |    80 |  3600 | 35220   (1)| 00:00:02 |
+|*  3 |    HASH JOIN         |           |    80 |  1440 | 34170   (1)| 00:00:02 |
+|*  4 |     TABLE ACCESS FULL| PARTSUPPS |    80 |   720 |  4520   (1)| 00:00:01 |
+|*  5 |     TABLE ACCESS FULL| LINEITEMS |   600 |  5400 | 29650   (1)| 00:00:02 |
+|*  6 |    TABLE ACCESS FULL | PARTS     |  2667 | 72009 |  1050   (1)| 00:00:01 |
+----------------------------------------------------------------------------------
+ 
+Predicate Information (identified by operation id):
+---------------------------------------------------
+ 
+   2 - access("P_PARTKEY"="PS_PARTKEY")
+   3 - access("PS_PARTKEY"="L_PARTKEY" AND "PS_SUPPKEY"="L_SUPPKEY")
+   4 - filter("PS_SUPPKEY"=2444)
+   5 - filter("L_SUPPKEY"=2444)
+   6 - filter("P_TYPE"='MEDIUM ANODIZED BRASS' OR "P_TYPE"='MEDIUM 
+              BRUSHED COPPER')
+*/
+;
+
+```
 # 7. Deep Left Join?
 # 8. Eigene SQL Anfragen

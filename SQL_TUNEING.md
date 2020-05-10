@@ -1,3 +1,11 @@
+### Autoren
+- Tobias Bossert
+- Jilin Elavathingal
+
+### 1. Einleitung
+Dieses Dokument ist im Rahmen des Moduls dbarc entstanden und geht auf die Fragenstellungen der Übung 8 ein.
+Konkret befasst sich diese mit SQL-Tuneing.
+Für eine bessere Übersicht sind SQL-Befehle in Konsolenschrift und die Syntax zusätzlich in Grossbuchstaben beschrieben, ggf. werden diese mit weiterführenden Befehlen ergänzt.
 # 2. Vorbereitung
 ## 2.1 Manual Links
 - Abbildung 4-2: Optimizer Components
@@ -50,12 +58,12 @@ AS SELECT *
 FROM dbarc00.lineitems;
 ```
 ## 2.4 Statistiken erheben
-Anzahl Zeilen (a) und Anzahl Blocks:
+Anzahl Zeilen (a) und Anzahl Blocks (c)
 ```sql
 SELECT table_name, blocks, num_rows FROM all_tables WHERE owner='DBARC01';
 ```
 ![](img_tuning/3ee44549.png)
-Anzahl extents (d) und Bytes (b)
+Anzahl Extents (d) und Bytes (b)
 ```sql
 SELECT segment_name, extents, bytes FROM DBA_SEGMENTS WHERE owner='DBARC01';
 ```
@@ -81,6 +89,7 @@ Plan hash value: 1275100350
 ----------------------------------------------------------------------------
 */
 ```
+*Bemerkung:* Es wird ein Full-Table-Scan benötigt, da das SELECT-Statement keine WHERE-Klausel beinhaltet.
 ```sql
 EXPLAIN PLAN FOR
     SELECT o_clerk FROM ORDERS;
@@ -97,8 +106,9 @@ Plan hash value: 1275100350
 ----------------------------------------------------------------------------
 */
 ```
-Hier ist interessant anzumerken, dass der selbe Ausführungsplan verwendet wird wie wenn alle Spalten
-ausgewählt werden. Der einzige Unterschied ist der Memory-Footprint. Ferner sind auch die Kosten minimal tiefer.
+*Bemerkung:* Hier ist interessant anzumerken, dass derselbe Ausführungsplan verwendet wird, wie wenn alle Spalten
+ausgewählt werden. Der einzige Unterschied ist der Memory-Footprint von 158MB auf 22MB sinkt, ferner sind auch die Kosten minimal tiefer.
+Es wird nur noch eine Spalte abgefragt.
 
 ```sql
 EXPLAIN PLAN FOR
@@ -117,9 +127,9 @@ Plan hash value: 3394267636
 -----------------------------------------------------------------------------
 */
 ```
-Hier starten wir wieder mit einem full access scan über die Tabelle orders. Durch `HASH UNIQUE` reduziert
-sich die Anzahl rows auf 1000 was bedeutet es gibt genau 1000 unique `o_clerk`. Auch hier trägt der 
-full access scan den grössten Teil der _Cost_ bei.
+*Bemerkung:* Hier starten wir wieder mit einem Full-Access-Scan über die Tabelle orders. Durch `HASH UNIQUE` reduziert
+sich die Anzahl rows auf 1000, was bedeutet, es gibt genau 1000 unique `o_clerk`. Auch hier trägt der 
+Full-Access-Scan den grössten Teil der _Cost_ bei. 
 
 ## 4.2 Selektion
 ### 4.2.1 Exact point query
@@ -144,8 +154,9 @@ Predicate Information (identified by operation id):
    1 - filter("O_ORDERKEY"=44480)
 */
 ```
-Wie bei den Projektionen auch muss hier jeweils ein full access scan gemacht werden um anschliessend die Filter anwenden zu können. Das ist bei jedem der 
-Beispiele in diesem Kapitel der Fall.
+*Bemerkung:* Wie bei den Projektionen auch muss hier jeweils ein Full-Access-Scan gemacht werden, um anschliessend die Filter anwenden zu können. 
+Da die Spalte `o_cleark`nicht indexiert ist, wird beim ersten Match nicht abgebrochen. Allerdings sparen wir bei den Kosten, da eine Bedingung vorhanden ist.
+Das ist bei jedem der Beispiele in diesem Kapitel der Fall.
 
 ### 4.2.2 Partial point query (OR)
 ```sql
@@ -169,8 +180,8 @@ Predicate Information (identified by operation id):
    1 - filter("O_CLERK"='Clerk#000000860' OR "O_CUSTKEY"=97303)
 */
 ```
-Als wesentlichen Unterschied zum _exact point query_ kann hier die Grösse in Bytes genannt werden. Was auch Sinn ergibt da durch die `OR`
-operation die Schnittmenge erhöht wird. Auch die Kosten sind etwas höher durch den komplexeren Filter erklärbar ist.
+*Bemerkung:* Als wesentlichen Unterschied zum _exact point query_ kann hier die Grösse in Bytes genannt werden. Was auch Sinn ergibt, da durch die `OR`
+Operation die Schnittmenge erhöht wird. Auch die Kosten sind etwas höher, welche durch den komplexeren Filter erklärbar ist.
 
 ### 4.2.3 Partial point query (AND)
 ```sql
@@ -194,8 +205,10 @@ Predicate Information (identified by operation id):
    1 - filter("O_CUSTKEY"=97303 AND "O_CLERK"='Clerk#000000860')
 */
 ```
-Hier haben wir eigentlich wieder ein _exact point query_ (Sichtbar an den Rows welche jeweils 1 sind). Ist aber wieder teurer als in [4.3.1](#4.3.1-exact-point-query)
-da der Filter komplexer ist.
+*Bemerkung:* Hier haben wir eigentlich wieder ein _exact point query_ (Sichtbar an den Rows, welche jeweils 1 sind). 
+Ist aber wieder teurer als in [4.3.1](#4.3.1-exact-point-query), da der Filter komplexer ist.
+Allerdings bemerken wir einen Kostenersparnis gegenüber [4.2.3], da die AND-Verknüpfung die nachfolgende Bedingung nur überprüft,
+wenn die Vorgängige erfüllt wurde.
 ### 4.2.4 Partial point query (weighed)
 ```sql
 EXPLAIN PLAN FOR
@@ -218,7 +231,12 @@ Predicate Information (identified by operation id):
    1 - filter("O_CUSTKEY"*2=194606 AND "O_CLERK"='Clerk#000000286')
 */
 ```
-
+*Bemerkung:* Hier handelt es wieder um eine AND-Verknüpfung, allerdings ist eine zusätzliche Operation im Statement ersichtlich.
+Die Kosten sind aber nicht auffällig gestiegen, was bedeutet die Operation wurde nur einmal angewendet, sprich sie wurde zurückgerechnet und
+in das folgende Statement überführt:
+```sql
+    SELECT * FROM orders WHERE o_custkey = 97303 AND o_clerk = 'Clerk#000000286';
+```
 ### 4.2.5 Range query
 ```sql
 EXPLAIN PLAN FOR
@@ -241,7 +259,9 @@ Predicate Information (identified by operation id):
    1 - filter("O_ORDERKEY"<=222222 AND "O_ORDERKEY">=111111)
 */
 ```
-Die Range hat sehr wohl einen Effekt - allerdings nur auf den Speicher:
+*Bemerkung:* Die Range hat sehr wohl einen Effekt - allerdings nur auf den Speicher!
+
+**Zur Überprüfung wurden verschiedene Intervallgrössen getestet:**
 ```sql
 -- select larger range
 EXPLAIN PLAN FOR
@@ -284,7 +304,8 @@ Predicate Information (identified by operation id):
    1 - filter("O_ORDERKEY"<=222222 AND "O_ORDERKEY">=222220)
 */
 ```
-
+*Bemerkung:* Es lässt sich gut erkennen, dass die Kosten unabhängig von der Range gleich bleiben, da alle Zeilen traversiert werden.
+Beim Speicherbedarf stellen wir fest, dass diese abhängig von der Range zunimmt.
 ### 4.2.6 Partial range query
 ```sql
 EXPLAIN PLAN FOR
@@ -309,7 +330,8 @@ Predicate Information (identified by operation id):
               "O_ORDERKEY">=44444 AND "O_CLERK">='Clerk#000000130')
 */
 ```
-
+*Bemerkung:* Die Zunahme bei den Kosten lässt sich durch den zusätzlichen Range auf einer weiteren Spalte erklären, ebenso die
+markannte Abnahme, durch den verkleinerten Ergebnisbereich.
 ## 4.3 Join
 ### 4.3.1 Natural join
 ```sql
@@ -385,19 +407,26 @@ Predicate Information (identified by operation id):
    2 - filter("ORDERS"."O_ORDERKEY"<100)
 /*
 ```
-
+*Bemerkung:* Beim Natural-Join werden alle Zeilen im Rahmen des Full-Access-Scans abgearbeitet, dadurch erheblich hohe Kosten und Speicherbedarf.
+Bei den gefilterten Joins sehen wir keinen Unterschied, was sich darauf schliessen lässt, dass der Optimizer die perfomanteste Abfrage wählt.
+Ausser man definiert Hints, dann fallen gewisse Optimierungen weg.
 # 5. Versuche mit Index
 Indizies erstellen:
 ```sql
 CREATE INDEX o_orderkey_ix ON orders(o_orderkey);
+--Index created.
 CREATE INDEX o_clerk_ix ON orders(o_clerk);
+--Index created.
 CREATE INDEX o_custkey_ix ON orders(o_custkey);
+--Index created.
 ```
 Wie gross sind die Indizies in Bytes?
 ```sql
 SELECT segment_name,bytes FROM user_segments WHERE segment_name IN('O_ORDERKEY_IX','O_CLERK_IX','O_CUSTKEY_IX', 'ORDERS');
 ```
 ![](img_tuning/c96218c4.png)
+
+*Bemerkung:* Man sieht, dass die Grösse der Indizes von der Tabelle abhängt. Inetwa verhalten sie sich proportional zu der Tabelle. 
 
 ## 5.1 Projektion
 ```sql
@@ -417,6 +446,8 @@ Plan hash value: 943631156
 ------------------------------------------------------------------------------------
 */
 ```
+*Bemerkung:* Beim Vergleichen mit [4.1] sehen wir, dass kein Full-Access-Scan mehr verwendet wird, sondern nun der erstellte Index verwendet wird.
+Dies verdeutlicht der Eintrag mit der Id 2.
 ## 5.2 Selektion
 ### 5.2.1 Exact point query
 ```sql
@@ -441,7 +472,11 @@ Predicate Information (identified by operation id):
    2 - access("O_ORDERKEY"=44480)
 */
 ```
-Mit erzwungenem _full table scan_:
+*Bemerkung:* Es wird ein Index-Range-Scan ausgeführt, welcher die ROWIDs mit den Speicherinformationen auf der Disk enthält.
+Diese wurden beim Indexieren erstellt, die Suche greift auf die Indexinformationn zu und nicht auf die ganze Tabelle.
+Somit können wir die Kosten um ein Vielfaches senken.
+
+**Mit erzwungenem _full table scan_:**
 ```sql
 EXPLAIN PLAN FOR
     SELECT /*+ FULL(orders) */ *FROM orders WHERE o_orderkey = 44480;
@@ -463,6 +498,8 @@ Predicate Information (identified by operation id):
    1 - filter("O_ORDERKEY"=44480)
 */
 ```
+*Bemerkung:* Hier wird mit einem Hint die Optimierung, in diesem Fall das Verwenden des Indexes, umgangen und ein Full-Access-Scan wird forciert.
+Die Kosten sind um 1600-faches höher.
 ### 5.2.2 Partial point query (OR)
 ```sql
 EXPLAIN PLAN FOR
@@ -492,6 +529,8 @@ Predicate Information (identified by operation id):
    7 - access("O_CUSTKEY"=97303)
 */
 ```
+*Bemerkung:* Wir sehen wieder, dass die Indizes verwendet werden. Diesmal werden gleich zwei Index-Range-Scans ausgeführt, welche mit einem Bitmap-Conversion verglichen werden.
+Dies ist erheblich effizienter und wird durch den Optimizer angewendet, danach kann wieder anhand der ROWID auf den Diskspeicher zugegriffen werden.
 ### 5.2.3 Partial point query (AND)
 ```sql
 EXPLAIN PLAN FOR
@@ -521,7 +560,8 @@ Predicate Information (identified by operation id):
    7 - access("O_CLERK"='Clerk#000000860')
 */
 ```
-
+*Bemerkung:* Gleich wie bei [5.2.2], ausser dass die AND-Verknüpfung wie schon in [4.2.3] festgestellt, effizienter ist und den Ergebnisbereich
+noch mehr einschrenkt und weniger Speicherbenötigt. Ferner wird die Reihenfolge der Scans vertauscht, eine Optimierung.
 ### 5.2.4 Partial point query (with product)
 ```sql
 EXPLAIN PLAN FOR
@@ -546,7 +586,8 @@ Predicate Information (identified by operation id):
    2 - access("O_CLERK"='Clerk#000000286')
 /*
 ```
-
+*Bemerkung:* Hier erfolgt der Scan ebenfalls über den Index, allerdings generiert die zusätzliche Multiplikation höhere Kosten.
+Diese sind immerhin 6-mal (vgl. [4.2.4]) geringer Dank dem erstellten Index.
 ### 5.2.5 Range query
 ```sql
 EXPLAIN PLAN FOR
@@ -570,6 +611,10 @@ Predicate Information (identified by operation id):
    2 - access("O_ORDERKEY">=111111 AND "O_ORDERKEY"<=222222)
 */
 ```
+*Bemerkung:* Man erkennt, auch beim Range-Query wird ein Index-Range-Scan ausgeführt, allerdings durch den Index wieder etwa um Faktor 6 
+Kostenersparnis.
+
+**CHECK FOLLOWING OUTPUT! Copy&Paste Mistake?**
 ```sql
 -- select larger range
 EXPLAIN PLAN FOR
@@ -615,6 +660,7 @@ Predicate Information (identified by operation id):
    2 - access("O_ORDERKEY">=222220 AND "O_ORDERKEY"<=222222)
 */
 ```
+*Bemerkung:* Es lässt sich gut erkennen, dass die Kosten und der Speicher (im Gegensatz zu vorher [4.2.5]) abhängig von der Range sind, da nicht alle Zeilen traversiert werden.
 ### 5.2.6 Partial range query
 ```sql
 EXPLAIN PLAN FOR
@@ -647,8 +693,9 @@ Predicate Information (identified by operation id):
    9 - access("O_CLERK">='Clerk#000000130' AND "O_CLERK"<='Clerk#000000139')
 */
 ```
-
-
+*Bemerkung:* Ebenso wie im vorherigen Beispiel ([4.2.6]) wird aus der Bedingung mit dem kleineren Subset die ROWIDs generiert, dies erfolgt
+mit Hilfe vom Index-Range-Scan. Danach werden die Daten abgefragt und gefiltert, wir stellen hier ein bemerkenswertes Kostenersparnis fest.
+(ca. Faktor 250)
 ## 5.3 Join
 ### 5.3.1 Natural join
 ```sql
@@ -678,6 +725,7 @@ Note
    - this is an adaptive plan
 */
 ```
+*Bemerkung:* Hier erfolgt trotz Index ein Full-Access-Scan analog zu [4.3.1].
 ### 5.3.2 Mit zusätzlicher Selektion
 ```sql
 EXPLAIN PLAN FOR
@@ -704,7 +752,10 @@ Predicate Information (identified by operation id):
    3 - access("O_ORDERKEY"<100)
 */
 ```
-Mit Zusätzlichem Index
+*Bemerkung:* Da in diesem Statement eine Selektion vorgenommen wird, wird diese mit einem Index-Range-Scan für die linke Tabelle (Orders) durchgeführt.
+(Kostenersparnis ca. um Faktor 8)
+
+**Mit Zusätzlichem Index**
 ```sql
 CREATE INDEX c_custkey_ix ON customers(c_custkey);
 EXPLAIN PLAN FOR
@@ -733,12 +784,15 @@ Note
    - this is an adaptive plan
 */
 ```
-Zitat Oracle doc: 
+*Bemerkung:* Trotz erstelltem Index für die Tabelle `customers` findet kein Index-Range-Scan statt, sondern ein Full-Access-Scan, es
+wird also auf alle Daten zugegriffen.
+
+*Zitat Oracle Doc:* 
 `The value TYPICAL displays only the hints that are not used in the final plan, whereas the value ALL displays both used and unused hints.` 
 Aus Gründen der Übersichtlichkeit verzichten wir in den folgenden Ausgaben auf den `ALL` report.
-Das die Hints benutz wurden ist an den Ausführungsplänen ersichtlich.
+Das die Hints benutzt wurden, ist an den Ausführungsplänen ersichtlich.
 
-Erzwingen eines nested Loop Joins
+**Erzwingen eines Nested-Loop-Joins**
 ```sql
 EXPLAIN PLAN FOR
     SELECT /*+ use_nl(ORDERS, CUSTOMERS) */ * FROM orders, customers WHERE o_custkey = c_custkey;
@@ -771,7 +825,10 @@ Total hints for statement: 1 (U - Unused (1))
          U -  use_nl(ORDERS, CUSTOMERS)
 */
 ```
-Erzwingen eines anderen als den Hash-Join
+*Bemerkung:* Durch die Vorgabe eines NL-Joins werden alle Datensätze verglichen, die Kosten für diese Abfrage sind sehr hoch.
+**Erzwingen eines anderen als den Hash-Join**
+
+**NO_USE_HASH (orders customers) MOMENTAN WIRD MERGE JOIN FORCIERT?!**
 ```sql
 EXPLAIN PLAN FOR
     SELECT /*+ use_merge(ORDERS, CUSTOMERS)*/ * FROM orders, customers WHERE o_custkey = c_custkey;
@@ -805,8 +862,10 @@ Total hints for statement: 1 (U - Unused (1))
          U -  use_merge(ORDERS, CUSTOMERS)
 */
 ```
+*Bemerkung:* Durch die Vorgabe, dass der Hash-Join nicht verwendet werden darf, wird ein Merge-Jonin verwendet. Da dieses Join eine sortierte Tabelle
+benötigt, wird sie kurzer Hand sortiert und mit einem Full-Access-Scan ausgelesen. Dies lässt die Abfrage sehr teuer und ineffizient werden.
 # 6. Quiz
-Benchmark-query:
+**Benchmark-Query**
 ```sql
 EXPLAIN PLAN FOR
     SELECT COUNT(*)
@@ -844,5 +903,47 @@ Predicate Information (identified by operation id):
               BRUSHED COPPER')
 */
 ```
+## 6.1 Ausgangslage
+
+Die Abfrage verwendet drei Tabellen `parts`, `partsupps` und `lineitems`, auf allen Tabellen erfolgt ein Full-Access-Scan,
+das ist auf höchster Ebene ineffizient. Des Weiteren sind keine Indizes auf den Tabellen definiert oder werden zumindest nicht für diese Abfrage
+verwendet.
+
+## 6.2 Lösungsansatz
+
+Wir möchten mit Hilfe von Indizes auf die `PARTKKEY`- und `SUPPKEY`-Spalten die Abfrage optimieren.
+```sql
+CREATE INDEX li_pk_ix on LINEITEMS(L_PARTKEY);
+--Index created.
+
+CREATE INDEX li_sk_ix on LINEITEMS(L_SUPPKEY);
+--Index created.
+
+CREATE INDEX p_pk_ix ON PARTS(p_partkey);
+--Index created.
+
+CREATE INDEX ps_pk_ix ON PARTSUPPS(ps_partkey);
+--Index created.
+
+CREATE INDEX ps_sk_ix ON PARTSUPPS(ps_suppkey);
+--Index created.
+
+**** ADD EXPLAIN PLAN !!! ****
+```
+
+## 6.3 Erkenntnis
+Mit den Indizes konnten wir die Abfragekosten erheblich reduzieren, fast um Faktor 600. Es werden nur doch die Indizes durchsucht und kein
+Full-Access-Scan mehr durchgeführt, diese Massnahmen entlasten zusätzlich den Speicherbedarf.
+
+Mit dem Erstellen von geschickt gewählten Indizes lassen sich Tabellen effizienter durchsuchen, damit wird die Performance drastisch verbessert.
+
 # 7. Deep Left Join?
+## 7.1 Vorbereitung
+## 7.2 DL-Join ohne Indizes
+## 7.3 DL-Join mit Indizes
+
 # 8. Eigene SQL Anfragen
+## 8.1 Vorbereitung
+## 8.2 Ausgangslage
+## 8.3 Lösungsansatz
+## 8.4 Erkenntnis

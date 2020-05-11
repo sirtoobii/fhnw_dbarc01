@@ -857,7 +857,7 @@ SELECT ps.*, l.*
 FROM (SELECT /*+ LEADING(parts,partsupps) NO_MERGE */ partsupps.ps_suppkey ps_sk
       FROM parts,partsupps
       WHERE p_partkey = ps_partkey) ps,
-     (SELECT /*+ LEADING(lineitems,orders) NO_MERGE */ lineitems.l_suppkey l_sk
+     (SELECT /*+ LEADING(orders,lineitems) NO_MERGE */ lineitems.l_suppkey l_sk
       FROM lineitems,orders
       WHERE l_orderkey = o_orderkey) l
 WHERE ps.ps_sk = l.l_sk;
@@ -867,26 +867,31 @@ WHERE ps.ps_sk = l.l_sk;
 ------------------------------------------------------------------------------------------
 | Id  | Operation            | Name      | Rows  | Bytes |TempSpc| Cost (%CPU)| Time     |
 ------------------------------------------------------------------------------------------
-|   0 | SELECT STATEMENT     |           |   482M|    11G|       | 59961   (3)| 00:00:03 |
-|*  1 |  HASH JOIN           |           |   482M|    11G|    18M| 59961   (3)| 00:00:03 |
+|   0 | SELECT STATEMENT     |           |   482M|    11G|       | 59955   (3)| 00:00:03 |
+|*  1 |  HASH JOIN           |           |   482M|    11G|    18M| 59955   (3)| 00:00:03 |
 |   2 |   VIEW               |           |   792K|     9M|       |  6530   (1)| 00:00:01 |
 |*  3 |    HASH JOIN         |           |   792K|    10M|  3328K|  6530   (1)| 00:00:01 |
 |   4 |     TABLE ACCESS FULL| PARTS     |   200K|   976K|       |  1049   (1)| 00:00:01 |
 |   5 |     TABLE ACCESS FULL| PARTSUPPS |   800K|  7031K|       |  4519   (1)| 00:00:01 |
-|   6 |   VIEW               |           |  6086K|    75M|       | 43800   (1)| 00:00:02 |
-|*  7 |    HASH JOIN         |           |  6086K|    92M|   125M| 43800   (1)| 00:00:02 |
-|   8 |     TABLE ACCESS FULL| LINEITEMS |  6001K|    57M|       | 29641   (1)| 00:00:02 |
-|   9 |     TABLE ACCESS FULL| ORDERS    |  1500K|  8789K|       |  6591   (1)| 00:00:01 |
+|   6 |   VIEW               |           |  6086K|    75M|       | 43794   (1)| 00:00:02 |
+|*  7 |    HASH JOIN         |           |  6086K|    92M|    25M| 43794   (1)| 00:00:02 |
+|   8 |     TABLE ACCESS FULL| ORDERS    |  1500K|  8789K|       |  6591   (1)| 00:00:01 |
+|   9 |     TABLE ACCESS FULL| LINEITEMS |  6001K|    57M|       | 29641   (1)| 00:00:02 |
 ------------------------------------------------------------------------------------------
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
+
    1 - access("PS"."PS_SK"="L"."L_SK")
    3 - access("P_PARTKEY"="PS_PARTKEY")
    7 - access("L_ORDERKEY"="O_ORDERKEY")
+
 ```
 Dieses Beispiel zeigt, dass der Optimizer eben nicht immer den optimalen Ausführungsplan berechnet. Der `Bushy Tree` reduziert sowohl den Memoryfootprint (11G vs. 13G) wie 
-auch die Kosten (59961 vs. 864K).
+auch die Kosten (59961 vs. 864K). Da wir jetzt volle Kontrolle über den Query haben, müssen wir uns auch Überlegen in welcher
+Reihenfolgen die Joins Stattfinden sollen. Drehen wir beispielsweise bei (7) die Reihenfolge mithilfe von `LEADING(lineitems, orders)` um,
+erhöht sich der Memory-Footprint um 100M (auf die Kosten hat es allerdings in diesem Fall kaum Einfluss). 
+Grundsätzlich wollen wir immer die kleine Tabelle mit der grösseren Joinen.
 ## 7.3 BT-Join mit Indizes
 Um die Ausführung weiter zu beschleunigen erstellen wir noch Indizies auf den betroffenen Spalten:
 ```sql
@@ -901,16 +906,16 @@ CREATE INDEX l_suppkey_ix ON lineitems(l_suppkey);
 -------------------------------------------------------------------------------------------------
 | Id  | Operation               | Name          | Rows  | Bytes |TempSpc| Cost (%CPU)| Time     |
 -------------------------------------------------------------------------------------------------
-|   0 | SELECT STATEMENT        |               |   482M|    11G|       | 53406   (4)| 00:00:03 |
-|*  1 |  HASH JOIN              |               |   482M|    11G|    18M| 53406   (4)| 00:00:03 |
+|   0 | SELECT STATEMENT        |               |   482M|    11G|       | 53399   (4)| 00:00:03 |
+|*  1 |  HASH JOIN              |               |   482M|    11G|    18M| 53399   (4)| 00:00:03 |
 |   2 |   VIEW                  |               |   792K|     9M|       |  5604   (1)| 00:00:01 |
 |*  3 |    HASH JOIN            |               |   792K|    10M|  3328K|  5604   (1)| 00:00:01 |
 |   4 |     INDEX FAST FULL SCAN| P_PARTKEY_IX  |   200K|   976K|       |   123   (1)| 00:00:01 |
 |   5 |     TABLE ACCESS FULL   | PARTSUPPS     |   800K|  7031K|       |  4519   (1)| 00:00:01 |
-|   6 |   VIEW                  |               |  6086K|    75M|       | 38170   (1)| 00:00:02 |
-|*  7 |    HASH JOIN            |               |  6086K|    92M|   125M| 38170   (1)| 00:00:02 |
-|   8 |     TABLE ACCESS FULL   | LINEITEMS     |  6001K|    57M|       | 29641   (1)| 00:00:02 |
-|   9 |     INDEX FAST FULL SCAN| O_ORDERKEY_IX |  1500K|  8789K|       |   961   (1)| 00:00:01 |
+|   6 |   VIEW                  |               |  6086K|    75M|       | 38164   (1)| 00:00:02 |
+|*  7 |    HASH JOIN            |               |  6086K|    92M|    25M| 38164   (1)| 00:00:02 |
+|   8 |     INDEX FAST FULL SCAN| O_ORDERKEY_IX |  1500K|  8789K|       |   961   (1)| 00:00:01 |
+|   9 |     TABLE ACCESS FULL   | LINEITEMS     |  6001K|    57M|       | 29641   (1)| 00:00:02 |
 -------------------------------------------------------------------------------------------------
  
 Predicate Information (identified by operation id):

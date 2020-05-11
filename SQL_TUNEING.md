@@ -950,7 +950,7 @@ Subquerys für `partsupps` und `lineitems` definieren damit auch alle Indizes be
 Wir erstellen neue Tabellen `OWN_CONT`, `OWN_CUST`, `OWN_EMP` und `OWN_ORD` und füllen diese mit entsprechenden Beispieldaten ab.
 Diese beschreiben jeweils Kontaktangaben von Kunden, ihre Bestellungen und den zuständigen Mitarbeiter und dessen Vorgesetzten.
 Im folgenden Schema lässt sich die Relation verdeutlichen:
-![](img_tuning/8-1_Vorbereitung_Schema.png)
+![](img_tuning/8-1_Vorbereitung_Schema.PNG)
 ```sql
 -- customer
 CREATE TABLE OWN_CUST
@@ -1112,12 +1112,12 @@ Note
 -----
    - dynamic statistics used: dynamic sampling (level=2)
 ```
-**Bemerkung:** Die zuvor erstellten Indizes werden verwendet und die Abfrage erfolgt mit deutlich weniger Kostenaufwand.
+**Bemerkung:** Die zuvor erstellten Indizes werden verwendet und die Abfrage erfolgt mit weniger Kostenaufwand.
+
 ### 8.1.4 Erkenntnis
-Wir konnten die Abfrage schon für die wachsende Tabelle optimieren. Es handelt sich um ein kleines Beispiel mit wenig Daten; 
-diese kleine Optimierung hat natürlich enormen Einfluss auf grössere und komplexere Datenstrukturen. Diese Erkenntnis kann man somit beliebig nach oben skalieren.
-Allerdings haben wir zu wenig Testdaten, um die Effizienz mit Faktor 100 zu belegen.
-Deshalb greifen wir im Versuch 2 [8.2] auf eine bestehende Tabelle mit grösseren Datenmengen zurück.
+Wir konnten die Abfrage bereits für diese kleine Datenmenge optimieren.
+Allerdings haben wir zu wenig Testdaten, um die Effizienz mit Faktor 100 zu belegen. 
+Deshalb greifen wir im Versuch 2 [8.2](#82-versuch-2) auf eine bestehende Tabelle mit grösseren Datenmengen zurück.
 
 ## 8.2 Versuch 2
 ### 8.2.1 Vorbereitung
@@ -1130,7 +1130,7 @@ CREATE TABLE TRY_ORDERS AS SELECT * FROM ORDERS;
 -- Table created.
 ```
 ### 8.2.2 Ausgangslage
-Wir möchten nun eine Abfrage über alle Bestellungen mit dem Status 'P' oder 'O' machen, welche von 1994 bis 1995 stammen.
+Wir möchten nun eine Abfrage über alle Bestellungen mit dem Status `P` oder `O` machen, welche von `1994` bis `1995` stammen.
 Ebenso soll der zugehörige Kunde mit dem Guthaben von 100 Einheiten abgefragt werden.
 ```sql
 SELECT * FROM TRY_CUSTOMERS,TRY_ORDERS
@@ -1153,7 +1153,6 @@ WHERE TRY_ORDERS.O_CUSTKEY = TRY_CUSTOMERS.C_CUSTKEY
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    1 - filter(TO_DATE('31-DEZ-95','DD-MON-RR')>=TO_DATE('1-JAN-94','DD-MON-RR
               '))
    2 - access("TRY_ORDERS"."O_CUSTKEY"="TRY_CUSTOMERS"."C_CUSTKEY")
@@ -1162,8 +1161,10 @@ Predicate Information (identified by operation id):
               AND ("TRY_ORDERS"."O_ORDERSTATUS"='O' OR "TRY_ORDERS"."O_ORDERSTATUS"='P') 
               AND "TRY_ORDERS"."O_ORDERDATE">=TO_DATE('1-JAN-94','DD-MON-RR'))
 ```
-**Bemerkung:** Wie zu erwarten, erfolgt die Abfrage über die Full-Access-Scans auf die beiden Tabellen.
-Nun haben wir deutlich höhere Kosten als im Versuch 1 [8.1], dies ist der grösseren Datenmenge geschuldet.
+**Bemerkung:** Wie zu erwarten, erfolgt die Abfrage über die Full-Access-Scans auf die beiden Tabellen. Und dies obwohl am Ende nur eine
+einzige Zeile benötigt wird.
+Nun haben wir deutlich höhere Kosten als im Versuch 1 [8.1](#81-versuch-1), dies ist primär der grösseren Datenmenge geschuldet.
+
 ### 8.2.3 Lösungsansatz
 Auch hier werden wir mit Indizes die Abfrage optimieren.
 Wir erstellen die Indizes auf die folgenden Spalten:
@@ -1171,7 +1172,7 @@ Wir erstellen die Indizes auf die folgenden Spalten:
 CREATE INDEX to_ck_ix ON TRY_ORDERS(O_CUSTKEY);
 CREATE INDEX tc_ac_ix ON TRY_CUSTOMERS(C_ACCTBAL);
 ```
-Nun führen wir erneut die Abfrage aus [8.2.2] durch:
+Nun führen wir erneut die Abfrage aus [8.2.2](#822-ausgangslage) durch:
 ```sql
 SELECT * FROM TRY_CUSTOMERS,TRY_ORDERS
 WHERE TRY_ORDERS.O_CUSTKEY = TRY_CUSTOMERS.C_CUSTKEY

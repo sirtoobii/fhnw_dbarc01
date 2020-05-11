@@ -58,16 +58,16 @@ AS SELECT *
 FROM dbarc00.lineitems;
 ```
 ## 2.4 Statistiken erheben
-Anzahl Zeilen (a) und Anzahl Blocks (c)
+Anzahl Zeilen **(a)** und Anzahl Blocks **(c)**
 ```sql
 SELECT table_name, blocks, num_rows FROM all_tables WHERE owner='DBARC01';
 ```
-![](img_tuning/3ee44549.png)
-Anzahl Extents (d) und Bytes (b)
+![](img_tuning/3ee44549.png)  
+Anzahl Extents **(d)** und Bytes **(b)**
 ```sql
 SELECT segment_name, extents, bytes FROM DBA_SEGMENTS WHERE owner='DBARC01';
 ```
-![](img_tuning/54620291.png)
+![](img_tuning/54620291.png)  
 
 # 3. Ausführungsplan
 ```sql
@@ -84,7 +84,9 @@ SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typica
 ----------------------------------------------------------------------------
 ```
 Die hier gezeigte Tabelle zeigt einen Ausführungsplan welcher mit dem oberhalb angegebenen Query generiert wurde.
-In den folgenden Aufgaben verzichten wir aus Gründen der Übersichtlichkeit auf das wiederholte ausschreiben von
+Wobei die Kosten von unten nach oben aufsummiert werden. Sie werden berechnet aus Disk I/O, CPU Zeit und Hauptspeicher verbrauch.
+
+In den folgenden Aufgaben verzichten wir aus Gründen der Übersichtlichkeit auf das wiederholte Ausschreiben von
 `EXPLAIN PLAN FOR` und `ELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));`.
 
 # 4. Versuche ohne Index
@@ -100,7 +102,7 @@ SELECT * FROM ORDERS;
 |   1 |  TABLE ACCESS FULL| ORDERS |  1500K|   158M|  6599   (1)| 00:00:01 |
 ----------------------------------------------------------------------------
 ```
-*Bemerkung:* Es wird ein Full-Table-Scan benötigt, da das SELECT-Statement keine WHERE-Klausel beinhaltet.
+*Bemerkung:* Es wird ein Full-Table-Scan benötigt, da das `SELECT`-Statement sämtliche Daten der Tabelle abfragt.
 ```sql
 SELECT o_clerk FROM ORDERS;
 ```
@@ -114,7 +116,7 @@ SELECT o_clerk FROM ORDERS;
 ```
 *Bemerkung:* Hier ist interessant anzumerken, dass derselbe Ausführungsplan verwendet wird, wie wenn alle Spalten
 ausgewählt werden. Der einzige Unterschied ist der Memory-Footprint von 158MB auf 22MB sinkt, ferner sind auch die Kosten minimal tiefer.
-Es wird nur noch eine Spalte abgefragt.
+Der tiefere Memory-Footprint kommt von daher, dass nur noch eine Spalte ausgewählt wird.
 
 ```sql
 SELECT DISTINCT o_clerk FROM ORDERS;
@@ -130,7 +132,7 @@ SELECT DISTINCT o_clerk FROM ORDERS;
 ```
 *Bemerkung:* Hier starten wir wieder mit einem Full-Access-Scan über die Tabelle orders. Durch `HASH UNIQUE` reduziert
 sich die Anzahl rows auf 1000, was bedeutet, es gibt genau 1000 unique `o_clerk`. Auch hier trägt der 
-Full-Access-Scan den grössten Teil der _Cost_ bei. Die leicht erhöhten Kosten kommen daher, dass Duplikate rausgefiltert werden
+Full-Access-Scan den grössten Teil der _Cost_ bei. Die leicht erhöhten Kosten gegenüber dem vorherigen Query kommen daher, dass Duplikate rausgefiltert werden
 müssen.
 
 ## 4.2 Selektion
@@ -846,9 +848,9 @@ Predicate Information (identified by operation id):
 ```
 
 Für den Join vollen wir den Optimizer dazu bringen folgenden `Bushy Tree` zu bilden:
-![](img_tuning/bushy_tree.png)
-Um das zu erreichen muss der Query umgeschreiben werden. Zum einen müssen die zwei Subquerys für die Tabellen `orders` und `lineitems` sowie für
-`parts` und `partsupps`. Zum anderen muss der Optimizer dazu gebracht werden diese beiden Querys seperat zu Joinen. Dies erreichen wir mit den beiden Hints
+![](img_tuning/bushy_tree.png)  
+Um das zu erreichen muss, der Query umgeschreiben werden. Zum einen müssen zwei Subquerys für die Tabellen `orders` und `lineitems` sowie für
+`parts` und `partsupps` erstellt werden. Zum anderen muss der Optimizer dazu gebracht werden, diese beiden Querys seperat zu Joinen. Dies erreichen wir mit den beiden Hints
 `LEADING(t1, t2)` und `NO_MERGE`. Folgend also der umgeschriebene Query:
 ```sql
 SELECT ps.*, l.*
@@ -883,7 +885,7 @@ Predicate Information (identified by operation id):
    3 - access("P_PARTKEY"="PS_PARTKEY")
    7 - access("L_ORDERKEY"="O_ORDERKEY")
 ```
-Dieses Beispiel zeigt das der Optimizer eben nicht immer den optimalen Ausführungsplan berechnet. Der `Bushy Tree` reduziert sowohl den Memoryfootprint (11G vs. 13G) wie 
+Dieses Beispiel zeigt, dass der Optimizer eben nicht immer den optimalen Ausführungsplan berechnet. Der `Bushy Tree` reduziert sowohl den Memoryfootprint (11G vs. 13G) wie 
 auch die Kosten (59961 vs. 864K).
 ## 7.3 BT-Join mit Indizes
 Um die Ausführung weiter zu beschleunigen erstellen wir noch Indizies auf den betroffenen Spalten:
@@ -917,7 +919,7 @@ Predicate Information (identified by operation id):
    3 - access("P_PARTKEY"="PS_PARTKEY")
    7 - access("L_ORDERKEY"="O_ORDERKEY")
 ```
-Interessanterweise bringt uns bei diesem Query ein Index nicht einen allzu grossen Vorteil. Mann müsste wahrscheinlich noch weitere
+Interessanterweise, bringt uns bei diesem Query ein Index nicht einen allzu grossen Vorteil. Mann müsste wahrscheinlich noch weitere
 Subquerys für `partsupps` und `lineitems` definieren damit auch alle Indiezies benützt werden können. Siehe dazu [Star Tranformation](#63-erkenntnis)
 # 8. Eigene SQL Anfragen
 ## 8.1 Vorbereitung

@@ -928,7 +928,8 @@ Interessanterweise, bringt uns bei diesem Query ein Index nicht einen allzu gros
 Subquerys für `partsupps` und `lineitems` definieren damit auch alle Indiezies benützt werden können. Siehe dazu [Star Tranformation](#63-erkenntnis)
 
 # 8. Eigene SQL Anfragen
-## 8.1 Vorbereitung
+## 8.1 Versuch 1
+### 8.1.1 Vorbereitung
 Wir erstellen neue Tabellen `OWN_CONT`, `OWN_CUST`, `OWN_EMP` und `OWN_ORD` und füllen diese mit entsprechenden Beispieldaten ab.
 Diese beschreiben jeweils Kontaktangaben von Kunden, ihre Bestellungen und den zuständigen Mitarbeiter und dessen Vorgesetzten.
 Im folgenden Schema lässt sich die Relation verdeutlichen:
@@ -999,11 +1000,10 @@ CREATE TABLE OWN_ORD
                 ON DELETE SET NULL
 );
 ```
-Das Einfügen von Beispieldaten wurde hier weggelassen, da dieser Teil nicht weiter von Bedeutung ist.
-Kann aber unter https://www.oracletutorial.com/getting-started/oracle-sample-database/ nachgeschlagen werden.
+Das Einfügen von Beispieldaten wurde hier bewusst weggelassen, da dieser Teil nicht weiter von Bedeutung ist.
+Mehr Infos unter https://www.oracletutorial.com/getting-started/oracle-sample-database
 
-## 8.2 Ausgangslage
-### 8.2.1 Fall 1
+### 8.1.2 Ausgangslage
 Wir möchten nun eine Abfrage über alle Bestellungen mit dem Status 'Pending' oder 'Cancelled' machen, welche aus dem Jahr 2016 stammen.
 Ebenso sollen die Kontaktinformationen und der zuständige Verkäufer abgefragt werden.
 ```sql
@@ -1045,26 +1045,18 @@ Note
    - dynamic statistics used: dynamic sampling (level=2)
    - this is an adaptive plan
 ```
-**Bemerkung:** Alle Tabellen werden mit einem Full-Access-Scan verarbeitet, das ist sehr ineffizient.
+**Bemerkung:** Alle Tabellen werden mit einem Full-Access-Scan verarbeitet, das ist sehr ineffizient. 
+Bei grösseren Datenmengen macht sich dies sehr schnell bemerkbar.
 
-### 8.2.1 Fall 2
-Beschreibung
-```sql
-```
-```text
-```
-**Bemerkung:** 
-
-## 8.3 Lösungsansatz
-### 8.3.1 Fall 1
+### 8.1.3 Lösungsansatz
 Wie schon in den vorherigen Aufgabenstellungen können wir mit Indizes die Abfrage optimieren.
-Um die Ausführung weiter zu beschleunigen, erstellen wir Indizes auf die betroffenen Spalten:
+Um die Ausführung weiter zu beschleunigen, erstellen wir also Indizes auf die betroffenen Spalten:
 ```sql
 CREATE INDEX oo_status_ix ON OWN_ORD(STATUS);
 CREATE INDEX oo_order_date_ix ON OWN_ORD(ORDER_DATE);
 CREATE INDEX oe_job_title_ix ON OWN_EMP(JOB_TITLE);
 ```
-Nun führen wir erneut die Abfrage aus [8.2] durch:
+Nun führen wir erneut die Abfrage aus [8.1.2] durch:
 ```sql
 SELECT * FROM OWN_ORD, OWN_EMP
 WHERE OWN_ORD.SALESMAN_ID = OWN_EMP.EMPLOYEE_ID AND
@@ -1104,15 +1096,77 @@ Note
    - dynamic statistics used: dynamic sampling (level=2)
 ```
 **Bemerkung:** Die zuvor erstellten Indizes werden verwendet und die Abfrage erfolgt mit deutlich weniger Kostenaufwand.
-### 8.3.2 Fall 2
-Beschreibung
+### 8.1.4 Erkenntnis
+Wir konnten die Abfrage schon für die wachsende Tabelle optimieren. Es handelt sich um ein kleines Beispiel mit wenig Daten; 
+diese kleine Optimierung hat natürlich enormen Einfluss auf grössere und komplexere Datenstrukturen. Diese Erkenntnis kann man somit beliebig nach oben skalieren.
+Allerdings haben wir zu wenig Testdaten, um die Effizienz mit Faktor 100 zu belegen. 
+Deshalb greifen wir im Versuch 2 [8.2] auf eine bestehende Tabelle mit grösseren Datenmengen zurück.
+
+## 8.2 Versuch 2
+### 8.2.1 Vorbereitung
+Wir erstellen uns eine Kopie aus den vorhandenen Tabellen `ORDERS` und `CUSTOMERS`, diese benennen wir jeweils mit dem
+Prefix `TRY_`:
 ```sql
+CREATE TABLE TRY_CUSTOMERS AS SELECT * FROM CUSTOMERS;
+-- Table created.
+CREATE TABLE TRY_ORDERS AS SELECT * FROM ORDERS;
+-- Table created.
 ```
+### 8.2.2 Ausgangslage
+Wir möchten nun eine Abfrage über alle Bestellungen mit dem Status 'P' oder 'O' machen, welche von 1990 bis 1995 stammen.
+Ebenso soll der zugehörige Kunde abgefragt werden.
 ```sql
+SELECT * FROM TRY_CUSTOMERS, TRY_ORDERS
+WHERE TRY_CUSTOMERS.C_CUSTKEY = TRY_ORDERS.O_CUSTKEY AND
+        (TRY_ORDERS.O_ORDERSTATUS = 'P' OR TRY_ORDERS.O_ORDERSTATUS = 'O') AND
+        TRY_ORDERS.O_ORDERDATE BETWEEN to_date('1-JAN-90','DD-MON-RR') AND to_date('31-DEZ-95','DD-MON-RR')
+ORDER BY TRY_ORDERS.O_ORDERDATE;
+```
+```text
+Plan hash value: 3414636293
+ 
+----------------------------------------------------------------------------------------------
+| Id  | Operation            | Name          | Rows  | Bytes |TempSpc| Cost (%CPU)| Time     |
+----------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT     |               |   607K|   156M|       | 47578   (1)| 00:00:02 |
+|   1 |  SORT ORDER BY       |               |   607K|   156M|   175M| 47578   (1)| 00:00:02 |
+|*  2 |   FILTER             |               |       |       |       |            |          |
+|*  3 |    HASH JOIN         |               |   607K|   156M|    24M| 12340   (1)| 00:00:01 |
+|   4 |     TABLE ACCESS FULL| TRY_CUSTOMERS |   150K|    22M|       |   950   (1)| 00:00:01 |
+|*  5 |     TABLE ACCESS FULL| TRY_ORDERS    |   607K|    64M|       |  6640   (1)| 00:00:01 |
+----------------------------------------------------------------------------------------------
+ 
+Predicate Information (identified by operation id):
+---------------------------------------------------
+ 
+   2 - filter(TO_DATE('31-DEZ-95','DD-MON-RR')>=TO_DATE('1-JAN-90','DD-MON-RR'))
+   3 - access("TRY_CUSTOMERS"."C_CUSTKEY"="TRY_ORDERS"."O_CUSTKEY")
+   5 - filter(("TRY_ORDERS"."O_ORDERSTATUS"='O' OR "TRY_ORDERS"."O_ORDERSTATUS"='P') 
+              AND "TRY_ORDERS"."O_ORDERDATE"<=TO_DATE('31-DEZ-95','DD-MON-RR') AND 
+              "TRY_ORDERS"."O_ORDERDATE">=TO_DATE('1-JAN-90','DD-MON-RR'))
+```
+**Bemerkung:** Wie zu erwarten, erfolgt die Abfrage über die Full-Access-Scans auf die beiden Tabellen.
+Nun haben wir deutlich höhere Kosten als im Versuch 1 [8.1].
+### 8.2.3 Lösungsansatz
+Auch hier werden wir mit Indizes die Abfrage optimieren.
+Wir erstellen die Indizes auf die folgenden Spalten:
+```sql
+CREATE INDEX to_os_ix ON TRY_ORDERS(O_ORDERSTATUS);
+CREATE INDEX to_od_ix ON TRY_ORDERS(O_ORDERDATE);
+CREATE INDEX to_ck_ix ON TRY_ORDERS(O_CUSTKEY);
+```
+Nun führen wir erneut die Abfrage aus [8.2.2] durch:
+```sql
+SELECT * FROM TRY_CUSTOMERS, TRY_ORDERS
+WHERE TRY_CUSTOMERS.C_CUSTKEY = TRY_ORDERS.O_CUSTKEY AND
+        (TRY_ORDERS.O_ORDERSTATUS = 'P' OR TRY_ORDERS.O_ORDERSTATUS = 'O') AND
+        TRY_ORDERS.O_ORDERDATE BETWEEN to_date('1-JAN-90','DD-MON-RR') AND to_date('31-DEZ-95','DD-MON-RR')
+ORDER BY TRY_ORDERS.O_ORDERDATE;
 ```
 ```text
 ```
-**Bemerkung:**
-## 8.4 Erkenntnis
-Es handelt sich um ein kleines Beispiel mit wenig Daten; diese kleine Optimierung hat natürlich enormen Einfluss auf grössere
- und komplexere Datenstrukturen. Diese Erkenntnis kann man somit beliebig nach oben skalieren.
+**Bemerkung:** Die zuvor erstellten Indizes werden verwendet und die Abfrage erfolgt mit deutlich weniger Kostenaufwand.
+### 8.2.4 Erkenntnis
+Durch die erheblich grössere Datenmenge konnten wir feststellen, dass die Optimierung mind. Faktor 100 mit sich bringt.
+Es ist durchaus sinnvoll seine Tabellen und Datenstrukturen so zu designen, dass sie schon von Anfang an mit grösseren
+Datenmengen effizient umgehen kann. Indizes sind eine von vielen Faktoren, um die Datenbankarchitektur effizient zu gestalten.

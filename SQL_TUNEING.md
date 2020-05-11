@@ -813,9 +813,112 @@ für den Join erheblich reduzieren. Dieser Vorgang wird in den Oracle Docs als `
 
 # 7. Deep Left Join?
 ## 7.1 Vorbereitung
-## 7.2 DL-Join ohne Indizes
-## 7.3 DL-Join mit Indizes
+Als erstes erstellen wir einen Query welche die Tabellen `orders`, `lineitems`, `partsupps` und `parts` umfasst:
+```sql
+SELECT partsupps.ps_suppkey, lineitems.l_suppkey
+FROM parts,partsupps,lineitems,orders
+WHERE p_partkey = ps_partkey
+  AND l_orderkey = o_orderkey
+  AND ps_suppkey = l_suppkey;
+```
+Ohne unser Eingreifen resultiert diese Query in folgendem Ausführungsplan (welcher einen `Deep Left Tree` dahrstellt):
+```text
+------------------------------------------------------------------------------------------
+| Id  | Operation            | Name      | Rows  | Bytes |TempSpc| Cost (%CPU)| Time     |
+------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT     |           |   482M|    13G|       |   864K  (1)| 00:00:34 |
+|*  1 |  HASH JOIN           |           |   482M|    13G|    25M|   864K  (1)| 00:00:34 |
+|   2 |   TABLE ACCESS FULL  | ORDERS    |  1500K|  8789K|       |  6591   (1)| 00:00:01 |
+|*  3 |   HASH JOIN          |           |   475M|    10G|    19M| 44867   (4)| 00:00:02 |
+|*  4 |    HASH JOIN         |           |   792K|    10M|  3328K|  6530   (1)| 00:00:01 |
+|   5 |     TABLE ACCESS FULL| PARTS     |   200K|   976K|       |  1049   (1)| 00:00:01 |
+|   6 |     TABLE ACCESS FULL| PARTSUPPS |   800K|  7031K|       |  4519   (1)| 00:00:01 |
+|   7 |    TABLE ACCESS FULL | LINEITEMS |  6001K|    57M|       | 29641   (1)| 00:00:02 |
+------------------------------------------------------------------------------------------
+ 
+Predicate Information (identified by operation id):
+---------------------------------------------------
+ 
+   1 - access("L_ORDERKEY"="O_ORDERKEY")
+   3 - access("PS_SUPPKEY"="L_SUPPKEY")
+   4 - access("P_PARTKEY"="PS_PARTKEY")
 
+```
+
+Für den Join vollen wir den Optimizer dazu bringen folgenden `Bushy Tree` zu bilden:
+![](img_tuning/bushy_tree.png)
+Um das zu erreichen muss der Query umgeschreiben werden. Zum einen müssen die zwei Subquerys für die Tabellen `orders` und `lineitems` sowie für
+`parts` und `partsupps`. Zum anderen muss der Optimizer dazu gebracht werden diese beiden Querys seperat zu Joinen. Dies erreichen wir mit den beiden Hints
+`LEADING(t1, t2)` und `NO_MERGE`. Folgend also der umgeschriebene Query:
+```sql
+SELECT ps.*, l.*
+FROM (SELECT /*+ LEADING(parts,partsupps) NO_MERGE */ partsupps.ps_suppkey ps_sk
+      FROM parts,partsupps
+      WHERE p_partkey = ps_partkey) ps,
+     (SELECT /*+ LEADING(lineitems,orders) NO_MERGE */ lineitems.l_suppkey l_sk
+      FROM lineitems,orders
+      WHERE l_orderkey = o_orderkey) l
+WHERE ps.ps_sk = l.l_sk;
+```
+## 7.2 BT-Join ohne Indizes
+```text
+------------------------------------------------------------------------------------------
+| Id  | Operation            | Name      | Rows  | Bytes |TempSpc| Cost (%CPU)| Time     |
+------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT     |           |   482M|    11G|       | 59961   (3)| 00:00:03 |
+|*  1 |  HASH JOIN           |           |   482M|    11G|    18M| 59961   (3)| 00:00:03 |
+|   2 |   VIEW               |           |   792K|     9M|       |  6530   (1)| 00:00:01 |
+|*  3 |    HASH JOIN         |           |   792K|    10M|  3328K|  6530   (1)| 00:00:01 |
+|   4 |     TABLE ACCESS FULL| PARTS     |   200K|   976K|       |  1049   (1)| 00:00:01 |
+|   5 |     TABLE ACCESS FULL| PARTSUPPS |   800K|  7031K|       |  4519   (1)| 00:00:01 |
+|   6 |   VIEW               |           |  6086K|    75M|       | 43800   (1)| 00:00:02 |
+|*  7 |    HASH JOIN         |           |  6086K|    92M|   125M| 43800   (1)| 00:00:02 |
+|   8 |     TABLE ACCESS FULL| LINEITEMS |  6001K|    57M|       | 29641   (1)| 00:00:02 |
+|   9 |     TABLE ACCESS FULL| ORDERS    |  1500K|  8789K|       |  6591   (1)| 00:00:01 |
+------------------------------------------------------------------------------------------
+ 
+Predicate Information (identified by operation id):
+---------------------------------------------------
+   1 - access("PS"."PS_SK"="L"."L_SK")
+   3 - access("P_PARTKEY"="PS_PARTKEY")
+   7 - access("L_ORDERKEY"="O_ORDERKEY")
+```
+Dieses Beispiel zeigt das der Optimizer eben nicht immer den optimalen Ausführungsplan berechnet. Der `Bushy Tree` reduziert sowohl den Memoryfootprint (11G vs. 13G) wie 
+auch die Kosten (59961 vs. 864K).
+## 7.3 BT-Join mit Indizes
+Um die Ausführung weiter zu beschleunigen erstellen wir noch Indizies auf den betroffenen Spalten:
+```sql
+CREATE INDEX p_partkey_ix ON parts(p_partkey);
+CREATE INDEX ps_partkey_ix ON partsupps(ps_partkey);
+CREATE INDEX o_orderkey_ix ON orders(o_orderkey);
+CREATE INDEX l_oderkey_ix ON lineitems(l_orderkey);
+CREATE INDEX ps_suppkey_ix ON partsupps(ps_suppkey);
+CREATE INDEX l_suppkey_ix ON lineitems(l_suppkey);
+```
+```text
+-------------------------------------------------------------------------------------------------
+| Id  | Operation               | Name          | Rows  | Bytes |TempSpc| Cost (%CPU)| Time     |
+-------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT        |               |   482M|    11G|       | 53406   (4)| 00:00:03 |
+|*  1 |  HASH JOIN              |               |   482M|    11G|    18M| 53406   (4)| 00:00:03 |
+|   2 |   VIEW                  |               |   792K|     9M|       |  5604   (1)| 00:00:01 |
+|*  3 |    HASH JOIN            |               |   792K|    10M|  3328K|  5604   (1)| 00:00:01 |
+|   4 |     INDEX FAST FULL SCAN| P_PARTKEY_IX  |   200K|   976K|       |   123   (1)| 00:00:01 |
+|   5 |     TABLE ACCESS FULL   | PARTSUPPS     |   800K|  7031K|       |  4519   (1)| 00:00:01 |
+|   6 |   VIEW                  |               |  6086K|    75M|       | 38170   (1)| 00:00:02 |
+|*  7 |    HASH JOIN            |               |  6086K|    92M|   125M| 38170   (1)| 00:00:02 |
+|   8 |     TABLE ACCESS FULL   | LINEITEMS     |  6001K|    57M|       | 29641   (1)| 00:00:02 |
+|   9 |     INDEX FAST FULL SCAN| O_ORDERKEY_IX |  1500K|  8789K|       |   961   (1)| 00:00:01 |
+-------------------------------------------------------------------------------------------------
+ 
+Predicate Information (identified by operation id):
+---------------------------------------------------
+   1 - access("PS"."PS_SK"="L"."L_SK")
+   3 - access("P_PARTKEY"="PS_PARTKEY")
+   7 - access("L_ORDERKEY"="O_ORDERKEY")
+```
+Interessanterweise bringt uns bei diesem Query ein Index nicht einen allzu grossen Vorteil. Mann müsste wahrscheinlich noch weitere
+Subquerys für `partsupps` und `lineitems` definieren damit auch alle Indiezies benützt werden können. Siehe dazu [Star Tranformation](#63-erkenntnis)
 # 8. Eigene SQL Anfragen
 ## 8.1 Vorbereitung
 ## 8.2 Ausgangslage

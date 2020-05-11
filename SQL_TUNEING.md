@@ -1133,33 +1133,34 @@ CREATE TABLE TRY_ORDERS AS SELECT * FROM ORDERS;
 Wir möchten nun eine Abfrage über alle Bestellungen mit dem Status 'P' oder 'O' machen, welche von 1990 bis 1995 stammen.
 Ebenso soll der zugehörige Kunde abgefragt werden.
 ```sql
-SELECT * FROM TRY_CUSTOMERS, TRY_ORDERS
-WHERE TRY_CUSTOMERS.C_CUSTKEY = TRY_ORDERS.O_CUSTKEY AND
-        (TRY_ORDERS.O_ORDERSTATUS = 'P' OR TRY_ORDERS.O_ORDERSTATUS = 'O') AND
-        TRY_ORDERS.O_ORDERDATE BETWEEN to_date('1-JAN-90','DD-MON-RR') AND to_date('31-DEZ-95','DD-MON-RR')
+SELECT * FROM TRY_CUSTOMERS,TRY_ORDERS
+WHERE TRY_ORDERS.O_CUSTKEY = TRY_CUSTOMERS.C_CUSTKEY
+  AND (TRY_ORDERS.O_ORDERSTATUS = 'P' OR TRY_ORDERS.O_ORDERSTATUS = 'O')
+  AND TRY_ORDERS.O_ORDERDATE BETWEEN to_date('1-JAN-94', 'DD-MON-RR')
+    AND to_date('31-DEZ-95', 'DD-MON-RR')
+  AND TRY_CUSTOMERS.C_ACCTBAL = 100;
 ```
 ```text
-Plan hash value: 3414636293
- 
-----------------------------------------------------------------------------------------------
-| Id  | Operation            | Name          | Rows  | Bytes |TempSpc| Cost (%CPU)| Time     |
-----------------------------------------------------------------------------------------------
-|   0 | SELECT STATEMENT     |               |   607K|   156M|       | 47578   (1)| 00:00:02 |
-|   1 |  SORT ORDER BY       |               |   607K|   156M|   175M| 47578   (1)| 00:00:02 |
-|*  2 |   FILTER             |               |       |       |       |            |          |
-|*  3 |    HASH JOIN         |               |   607K|   156M|    24M| 12340   (1)| 00:00:01 |
-|   4 |     TABLE ACCESS FULL| TRY_CUSTOMERS |   150K|    22M|       |   950   (1)| 00:00:01 |
-|*  5 |     TABLE ACCESS FULL| TRY_ORDERS    |   607K|    64M|       |  6640   (1)| 00:00:01 |
-----------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------
+| Id  | Operation           | Name          | Rows  | Bytes | Cost (%CPU)| Time     |
+-------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT    |               |     1 |   270 |  7570   (1)| 00:00:01 |
+|*  1 |  FILTER             |               |       |       |            |          |
+|*  2 |   HASH JOIN         |               |     1 |   270 |  7570   (1)| 00:00:01 |
+|*  3 |    TABLE ACCESS FULL| TRY_CUSTOMERS |     1 |   159 |   950   (1)| 00:00:01 |
+|*  4 |    TABLE ACCESS FULL| TRY_ORDERS    | 26834 |  2908K|  6619   (1)| 00:00:01 |
+-------------------------------------------------------------------------------------
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
  
-   2 - filter(TO_DATE('31-DEZ-95','DD-MON-RR')>=TO_DATE('1-JAN-90','DD-MON-RR'))
-   3 - access("TRY_CUSTOMERS"."C_CUSTKEY"="TRY_ORDERS"."O_CUSTKEY")
-   5 - filter(("TRY_ORDERS"."O_ORDERSTATUS"='O' OR "TRY_ORDERS"."O_ORDERSTATUS"='P') 
-              AND "TRY_ORDERS"."O_ORDERDATE"<=TO_DATE('31-DEZ-95','DD-MON-RR') AND 
-              "TRY_ORDERS"."O_ORDERDATE">=TO_DATE('1-JAN-90','DD-MON-RR'))
+   1 - filter(TO_DATE('31-DEZ-95','DD-MON-RR')>=TO_DATE('1-JAN-94','DD-MON-RR
+              '))
+   2 - access("TRY_ORDERS"."O_CUSTKEY"="TRY_CUSTOMERS"."C_CUSTKEY")
+   3 - filter("TRY_CUSTOMERS"."C_ACCTBAL"=100)
+   4 - filter("TRY_ORDERS"."O_ORDERDATE"<=TO_DATE('31-DEZ-95','DD-MON-RR') 
+              AND ("TRY_ORDERS"."O_ORDERSTATUS"='O' OR "TRY_ORDERS"."O_ORDERSTATUS"='P') 
+              AND "TRY_ORDERS"."O_ORDERDATE">=TO_DATE('1-JAN-94','DD-MON-RR'))
 ```
 **Bemerkung:** Wie zu erwarten, erfolgt die Abfrage über die Full-Access-Scans auf die beiden Tabellen.
 Nun haben wir deutlich höhere Kosten als im Versuch 1 [8.1].
@@ -1167,53 +1168,40 @@ Nun haben wir deutlich höhere Kosten als im Versuch 1 [8.1].
 Auch hier werden wir mit Indizes die Abfrage optimieren.
 Wir erstellen die Indizes auf die folgenden Spalten:
 ```sql
-CREATE INDEX to_os_ix ON TRY_ORDERS(O_ORDERSTATUS);
-CREATE INDEX to_od_ix ON TRY_ORDERS(O_ORDERDATE);
 CREATE INDEX to_ck_ix ON TRY_ORDERS(O_CUSTKEY);
+CREATE INDEX tc_bal_ix ON TRY_CUSTOMERS(C_ACCTBAL);
 ```
 Nun führen wir erneut die Abfrage aus [8.2.2] durch:
 ```sql
-EXPLAIN PLAN FOR
-SELECT * FROM TRY_CUSTOMERS, TRY_ORDERS
-WHERE TRY_CUSTOMERS.C_CUSTKEY = TRY_ORDERS.O_CUSTKEY AND
-    (TRY_ORDERS.O_ORDERSTATUS = 'P' OR TRY_ORDERS.O_ORDERSTATUS = 'O') AND
-    TRY_ORDERS.O_ORDERDATE BETWEEN to_date('1-JAN-90','DD-MON-RR') AND to_date('31-DEZ-95','DD-MON-RR')
-ORDER BY TRY_ORDERS.O_ORDERDATE;
-SELECT plan_table_output
-FROM TABLE (DBMS_XPLAN.DISPLAY('plan_table', null, 'typical'));
+SELECT * FROM TRY_CUSTOMERS,TRY_ORDERS
+WHERE TRY_ORDERS.O_CUSTKEY = TRY_CUSTOMERS.C_CUSTKEY
+  AND (TRY_ORDERS.O_ORDERSTATUS = 'P' OR TRY_ORDERS.O_ORDERSTATUS = 'O')
+  AND TRY_ORDERS.O_ORDERDATE BETWEEN to_date('1-JAN-94', 'DD-MON-RR')
+    AND to_date('31-DEZ-95', 'DD-MON-RR')
+  AND TRY_CUSTOMERS.C_ACCTBAL = 100;
 ```
 ```text
-----------------------------------------------------------------------------------------------------------------
-| Id  | Operation                              | Name          | Rows  | Bytes |TempSpc| Cost (%CPU)| Time     |
-----------------------------------------------------------------------------------------------------------------
-|   0 | SELECT STATEMENT                       |               | 38529 |     9M|       | 11126   (1)| 00:00:01 |
-|   1 |  SORT ORDER BY                         |               | 38529 |     9M|    11M| 11126   (1)| 00:00:01 |
-|*  2 |   FILTER                               |               |       |       |       |            |          |
-|*  3 |    HASH JOIN                           |               | 38529 |     9M|  4632K|  8888   (1)| 00:00:01 |
-|   4 |     TABLE ACCESS BY INDEX ROWID BATCHED| TRY_ORDERS    | 38529 |  4176K|       |  6500   (1)| 00:00:01 |
-|   5 |      BITMAP CONVERSION TO ROWIDS       |               |       |       |       |            |          |
-|   6 |       BITMAP AND                       |               |       |       |       |            |          |
-|   7 |        BITMAP CONVERSION FROM ROWIDS   |               |       |       |       |            |          |
-|   8 |         SORT ORDER BY                  |               |       |       |  1192K|            |          |
-|*  9 |          INDEX RANGE SCAN              | TO_OD_IX      | 13500 |       |       |    38   (0)| 00:00:01 |
-|  10 |        BITMAP OR                       |               |       |       |       |            |          |
-|  11 |         BITMAP CONVERSION FROM ROWIDS  |               |       |       |       |            |          |
-|* 12 |          INDEX RANGE SCAN              | TO_OS_IX      | 13500 |       |       |  1334   (1)| 00:00:01 |
-|  13 |         BITMAP CONVERSION FROM ROWIDS  |               |       |       |       |            |          |
-|* 14 |          INDEX RANGE SCAN              | TO_OS_IX      | 13500 |       |       |    72   (0)| 00:00:01 |
-|  15 |     TABLE ACCESS FULL                  | TRY_CUSTOMERS |   150K|    22M|       |   950   (1)| 00:00:01 |
-----------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------
+| Id  | Operation                              | Name          | Rows  | Bytes | Cost (%CPU)| Time     |
+--------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT                       |               |     1 |   270 |    20   (0)| 00:00:01 |
+|*  1 |  FILTER                                |               |       |       |            |          |
+|   2 |   NESTED LOOPS                         |               |     1 |   270 |    20   (0)| 00:00:01 |
+|   3 |    NESTED LOOPS                        |               |    15 |   270 |    20   (0)| 00:00:01 |
+|   4 |     TABLE ACCESS BY INDEX ROWID BATCHED| TRY_CUSTOMERS |     1 |   159 |     3   (0)| 00:00:01 |
+|*  5 |      INDEX RANGE SCAN                  | TC_BAL_IX     |     1 |       |     1   (0)| 00:00:01 |
+|*  6 |     INDEX RANGE SCAN                   | TO_CK_IX      |    15 |       |     2   (0)| 00:00:01 |
+|*  7 |    TABLE ACCESS BY INDEX ROWID         | TRY_ORDERS    |     1 |   111 |    17   (0)| 00:00:01 |
+--------------------------------------------------------------------------------------------------------
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
-   2 - filter(TO_DATE('31-DEZ-95','DD-MON-RR')>=TO_DATE('1-JAN-90','DD-MON-RR'))
-   3 - access("TRY_CUSTOMERS"."C_CUSTKEY"="TRY_ORDERS"."O_CUSTKEY")
-   9 - access("TRY_ORDERS"."O_ORDERDATE">=TO_DATE('1-JAN-90','DD-MON-RR') AND 
-              "TRY_ORDERS"."O_ORDERDATE"<=TO_DATE('31-DEZ-95','DD-MON-RR'))
-  12 - access("TRY_ORDERS"."O_ORDERSTATUS"='O')
-  14 - access("TRY_ORDERS"."O_ORDERSTATUS"='P')
-
+   1 - filter(TO_DATE('31-DEZ-95','DD-MON-RR')>=TO_DATE('1-JAN-94','DD-MON-RR'))
+   5 - access("TRY_CUSTOMERS"."C_ACCTBAL"=100)
+   6 - access("TRY_ORDERS"."O_CUSTKEY"="TRY_CUSTOMERS"."C_CUSTKEY")
+   7 - filter("TRY_ORDERS"."O_ORDERDATE"<=TO_DATE('31-DEZ-95','DD-MON-RR') AND 
+              ("TRY_ORDERS"."O_ORDERSTATUS"='O' OR "TRY_ORDERS"."O_ORDERSTATUS"='P') AND 
+              "TRY_ORDERS"."O_ORDERDATE">=TO_DATE('1-JAN-94','DD-MON-RR'))
 ```
 **Bemerkung:** Die zuvor erstellten Indizes werden verwendet und die Abfrage erfolgt mit deutlich weniger Kostenaufwand.
 ### 8.2.4 Erkenntnis

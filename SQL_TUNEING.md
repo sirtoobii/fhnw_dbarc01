@@ -1003,47 +1003,42 @@ Das Einfügen von Beispieldaten wurde hier weggelassen, da dieser Teil nicht wei
 Kann aber unter https://www.oracletutorial.com/getting-started/oracle-sample-database/ nachgeschlagen werden.
 
 ## 8.2 Ausgangslage
+### 8.2.1 Fall 1
 Wir möchten nun eine Abfrage über alle Bestellungen mit dem Status 'Pending' oder 'Cancelled' machen, welche aus dem Jahr 2016 stammen.
 Ebenso sollen die Kontaktinformationen und der zuständige Verkäufer abgefragt werden.
 ```sql
-SELECT * FROM OWN_ORD, OWN_CUST, OWN_CONT, OWN_EMP
-WHERE OWN_ORD.CUSTOMER_ID = OWN_CUST.CUSTOMER_ID AND
-        OWN_ORD.SALESMAN_ID = OWN_EMP.EMPLOYEE_ID AND
-        OWN_CUST.CUSTOMER_ID = OWN_CONT.CUSTOMER_ID AND
-        (OWN_ORD.STATUS = 'Pending' OR OWN_ORD.STATUS = 'Cancelled') AND
-        OWN_ORD.ORDER_DATE BETWEEN to_date('1-JAN-16','DD-MON-RR') AND to_date('31-DEZ-16','DD-MON-RR')
+SELECT * FROM OWN_ORD, OWN_EMP
+WHERE OWN_ORD.SALESMAN_ID = OWN_EMP.EMPLOYEE_ID AND
+    (OWN_ORD.STATUS = 'Pending' OR OWN_ORD.STATUS = 'Cancelled') AND
+      OWN_EMP.JOB_TITLE = 'Sales Representative' AND
+    OWN_ORD.ORDER_DATE BETWEEN to_date('1-JAN-16','DD-MON-RR') AND to_date('31-DEZ-16','DD-MON-RR')
 ORDER BY OWN_ORD.ORDER_DATE;
 ```
 ```text
-Plan hash value: 956813166
+Plan hash value: 4065222492
  
------------------------------------------------------------------------------------
-| Id  | Operation              | Name     | Rows  | Bytes | Cost (%CPU)| Time     |
------------------------------------------------------------------------------------
-|   0 | SELECT STATEMENT       |          |     6 |  8856 |    13   (8)| 00:00:01 |
-|   1 |  SORT ORDER BY         |          |     6 |  8856 |    13   (8)| 00:00:01 |
-|*  2 |   FILTER               |          |       |       |            |          |
-|*  3 |    HASH JOIN           |          |     6 |  8856 |    12   (0)| 00:00:01 |
-|*  4 |     HASH JOIN          |          |     6 |  6306 |     9   (0)| 00:00:01 |
-|*  5 |      HASH JOIN         |          |     6 |  3828 |     6   (0)| 00:00:01 |
-|*  6 |       TABLE ACCESS FULL| OWN_ORD  |     9 |   540 |     3   (0)| 00:00:01 |
-|   7 |       TABLE ACCESS FULL| OWN_EMP  |   104 | 60112 |     3   (0)| 00:00:01 |
-|   8 |      TABLE ACCESS FULL | OWN_CUST |   319 |   128K|     3   (0)| 00:00:01 |
-|   9 |     TABLE ACCESS FULL  | OWN_CONT |   319 |   132K|     3   (0)| 00:00:01 |
------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+| Id  | Operation            | Name    | Rows  | Bytes | Cost (%CPU)| Time     |
+--------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT     |         |     6 |  3828 |     7  (15)| 00:00:01 |
+|   1 |  SORT ORDER BY       |         |     6 |  3828 |     7  (15)| 00:00:01 |
+|*  2 |   FILTER             |         |       |       |            |          |
+|*  3 |    HASH JOIN         |         |     6 |  3828 |     6   (0)| 00:00:01 |
+|*  4 |     TABLE ACCESS FULL| OWN_ORD |     9 |   540 |     3   (0)| 00:00:01 |
+|*  5 |     TABLE ACCESS FULL| OWN_EMP |    30 | 17340 |     3   (0)| 00:00:01 |
+--------------------------------------------------------------------------------
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
  
-   2 - filter(TO_DATE('31-DEZ-16','DD-MON-RR')>=TO_DATE('1-JAN-16','DD-MON-
-              RR'))
-   3 - access("OWN_CUST"."CUSTOMER_ID"="OWN_CONT"."CUSTOMER_ID")
-   4 - access("OWN_ORD"."CUSTOMER_ID"="OWN_CUST"."CUSTOMER_ID")
-   5 - access("OWN_ORD"."SALESMAN_ID"="OWN_EMP"."EMPLOYEE_ID")
-   6 - filter(("OWN_ORD"."STATUS"='Cancelled' OR 
-              "OWN_ORD"."STATUS"='Pending') AND "OWN_ORD"."ORDER_DATE">=TO_DATE('1-JAN-16
-              ','DD-MON-RR') AND "OWN_ORD"."ORDER_DATE"<=TO_DATE('31-DEZ-16','DD-MON-RR')
-              )
+   2 - filter(TO_DATE('31-DEZ-16','DD-MON-RR')>=TO_DATE('1-JAN-16','DD-M
+              ON-RR'))
+   3 - access("OWN_ORD"."SALESMAN_ID"="OWN_EMP"."EMPLOYEE_ID")
+   4 - filter(("OWN_ORD"."STATUS"='Cancelled' OR 
+              "OWN_ORD"."STATUS"='Pending') AND "OWN_ORD"."ORDER_DATE">=TO_DATE('1-JAN
+              -16','DD-MON-RR') AND "OWN_ORD"."ORDER_DATE"<=TO_DATE('31-DEZ-16','DD-MO
+              N-RR'))
+   5 - filter("OWN_EMP"."JOB_TITLE"='Sales Representative')
  
 Note
 -----
@@ -1052,27 +1047,72 @@ Note
 ```
 **Bemerkung:** Alle Tabellen werden mit einem Full-Access-Scan verarbeitet, das ist sehr ineffizient.
 
+### 8.2.1 Fall 2
+Beschreibung
+```sql
+```
+```text
+```
+**Bemerkung:** 
+
 ## 8.3 Lösungsansatz
+### 8.3.1 Fall 1
 Wie schon in den vorherigen Aufgabenstellungen können wir mit Indizes die Abfrage optimieren.
 Um die Ausführung weiter zu beschleunigen, erstellen wir Indizes auf die betroffenen Spalten:
 ```sql
-CREATE INDEX pc_category_name_ix ON PRODUCT_CATEGORIES(CATEGORY_NAME);
-CREATE INDEX p_product_name_ix ON PRODUCTS(PRODUCT_NAME);
-CREATE INDEX p_list_price_ix ON PRODUCTS(LIST_PRICE);
+CREATE INDEX oo_status_ix ON OWN_ORD(STATUS);
+CREATE INDEX oo_order_date_ix ON OWN_ORD(ORDER_DATE);
+CREATE INDEX oe_job_title_ix ON OWN_EMP(JOB_TITLE);
 ```
 Nun führen wir erneut die Abfrage aus [8.2] durch:
 ```sql
-SELECT * FROM OWN_ORD, OWN_CUST, OWN_CONT, OWN_EMP
-WHERE OWN_ORD.CUSTOMER_ID = OWN_CUST.CUSTOMER_ID AND
-        OWN_ORD.SALESMAN_ID = OWN_EMP.EMPLOYEE_ID AND
-        OWN_CUST.CUSTOMER_ID = OWN_CONT.CUSTOMER_ID AND
-        (OWN_ORD.STATUS = 'Pending' OR OWN_ORD.STATUS = 'Cancelled') AND
-        OWN_ORD.ORDER_DATE BETWEEN to_date('1-JAN-16','DD-MON-RR') AND to_date('31-DEZ-16','DD-MON-RR')
+SELECT * FROM OWN_ORD, OWN_EMP
+WHERE OWN_ORD.SALESMAN_ID = OWN_EMP.EMPLOYEE_ID AND
+    (OWN_ORD.STATUS = 'Pending' OR OWN_ORD.STATUS = 'Cancelled') AND
+      OWN_EMP.JOB_TITLE = 'Sales Representative' AND
+    OWN_ORD.ORDER_DATE BETWEEN to_date('1-JAN-16','DD-MON-RR') AND to_date('31-DEZ-16','DD-MON-RR')
 ORDER BY OWN_ORD.ORDER_DATE;
 ```
 ```text
-
+Plan hash value: 1607876968
+ 
+-----------------------------------------------------------------------------------------------------------
+| Id  | Operation                              | Name             | Rows  | Bytes | Cost (%CPU)| Time     |
+-----------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT                       |                  |     6 |  3828 |     5  (20)| 00:00:01 |
+|   1 |  SORT ORDER BY                         |                  |     6 |  3828 |     5  (20)| 00:00:01 |
+|*  2 |   FILTER                               |                  |       |       |            |          |
+|*  3 |    HASH JOIN                           |                  |     6 |  3828 |     4   (0)| 00:00:01 |
+|*  4 |     TABLE ACCESS BY INDEX ROWID BATCHED| OWN_ORD          |     9 |   540 |     2   (0)| 00:00:01 |
+|*  5 |      INDEX RANGE SCAN                  | OO_ORDER_DATE_IX |    50 |       |     1   (0)| 00:00:01 |
+|   6 |     TABLE ACCESS BY INDEX ROWID BATCHED| OWN_EMP          |    30 | 17340 |     2   (0)| 00:00:01 |
+|*  7 |      INDEX RANGE SCAN                  | OE_JOB_TITLE_IX  |    30 |       |     1   (0)| 00:00:01 |
+-----------------------------------------------------------------------------------------------------------
+ 
+Predicate Information (identified by operation id):
+---------------------------------------------------
+ 
+   2 - filter(TO_DATE('31-DEZ-16','DD-MON-RR')>=TO_DATE('1-JAN-16','DD-MON-RR'))
+   3 - access("OWN_ORD"."SALESMAN_ID"="OWN_EMP"."EMPLOYEE_ID")
+   4 - filter("OWN_ORD"."STATUS"='Cancelled' OR "OWN_ORD"."STATUS"='Pending')
+   5 - access("OWN_ORD"."ORDER_DATE">=TO_DATE('1-JAN-16','DD-MON-RR') AND 
+              "OWN_ORD"."ORDER_DATE"<=TO_DATE('31-DEZ-16','DD-MON-RR'))
+   7 - access("OWN_EMP"."JOB_TITLE"='Sales Representative')
+ 
+Note
+-----
+   - dynamic statistics used: dynamic sampling (level=2)
 ```
+**Bemerkung:** Die zuvor erstellten Indizes werden verwendet und die Abfrage erfolgt mit deutlich weniger Kostenaufwand.
+### 8.3.2 Fall 2
+Beschreibung
+```sql
+```
+```sql
+```
+```text
+```
+**Bemerkung:**
 ## 8.4 Erkenntnis
 Es handelt sich um ein kleines Beispiel mit wenig Daten; diese kleine Optimierung hat natürlich enormen Einfluss auf grössere
  und komplexere Datenstrukturen. Diese Erkenntnis kann man somit beliebig nach oben skalieren.

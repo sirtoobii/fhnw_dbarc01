@@ -1137,7 +1137,6 @@ SELECT * FROM TRY_CUSTOMERS, TRY_ORDERS
 WHERE TRY_CUSTOMERS.C_CUSTKEY = TRY_ORDERS.O_CUSTKEY AND
         (TRY_ORDERS.O_ORDERSTATUS = 'P' OR TRY_ORDERS.O_ORDERSTATUS = 'O') AND
         TRY_ORDERS.O_ORDERDATE BETWEEN to_date('1-JAN-90','DD-MON-RR') AND to_date('31-DEZ-95','DD-MON-RR')
-ORDER BY TRY_ORDERS.O_ORDERDATE;
 ```
 ```text
 Plan hash value: 3414636293
@@ -1174,13 +1173,47 @@ CREATE INDEX to_ck_ix ON TRY_ORDERS(O_CUSTKEY);
 ```
 Nun führen wir erneut die Abfrage aus [8.2.2] durch:
 ```sql
+EXPLAIN PLAN FOR
 SELECT * FROM TRY_CUSTOMERS, TRY_ORDERS
 WHERE TRY_CUSTOMERS.C_CUSTKEY = TRY_ORDERS.O_CUSTKEY AND
-        (TRY_ORDERS.O_ORDERSTATUS = 'P' OR TRY_ORDERS.O_ORDERSTATUS = 'O') AND
-        TRY_ORDERS.O_ORDERDATE BETWEEN to_date('1-JAN-90','DD-MON-RR') AND to_date('31-DEZ-95','DD-MON-RR')
+    (TRY_ORDERS.O_ORDERSTATUS = 'P' OR TRY_ORDERS.O_ORDERSTATUS = 'O') AND
+    TRY_ORDERS.O_ORDERDATE BETWEEN to_date('1-JAN-90','DD-MON-RR') AND to_date('31-DEZ-95','DD-MON-RR')
 ORDER BY TRY_ORDERS.O_ORDERDATE;
+SELECT plan_table_output
+FROM TABLE (DBMS_XPLAN.DISPLAY('plan_table', null, 'typical'));
 ```
 ```text
+----------------------------------------------------------------------------------------------------------------
+| Id  | Operation                              | Name          | Rows  | Bytes |TempSpc| Cost (%CPU)| Time     |
+----------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT                       |               | 38529 |     9M|       | 11126   (1)| 00:00:01 |
+|   1 |  SORT ORDER BY                         |               | 38529 |     9M|    11M| 11126   (1)| 00:00:01 |
+|*  2 |   FILTER                               |               |       |       |       |            |          |
+|*  3 |    HASH JOIN                           |               | 38529 |     9M|  4632K|  8888   (1)| 00:00:01 |
+|   4 |     TABLE ACCESS BY INDEX ROWID BATCHED| TRY_ORDERS    | 38529 |  4176K|       |  6500   (1)| 00:00:01 |
+|   5 |      BITMAP CONVERSION TO ROWIDS       |               |       |       |       |            |          |
+|   6 |       BITMAP AND                       |               |       |       |       |            |          |
+|   7 |        BITMAP CONVERSION FROM ROWIDS   |               |       |       |       |            |          |
+|   8 |         SORT ORDER BY                  |               |       |       |  1192K|            |          |
+|*  9 |          INDEX RANGE SCAN              | TO_OD_IX      | 13500 |       |       |    38   (0)| 00:00:01 |
+|  10 |        BITMAP OR                       |               |       |       |       |            |          |
+|  11 |         BITMAP CONVERSION FROM ROWIDS  |               |       |       |       |            |          |
+|* 12 |          INDEX RANGE SCAN              | TO_OS_IX      | 13500 |       |       |  1334   (1)| 00:00:01 |
+|  13 |         BITMAP CONVERSION FROM ROWIDS  |               |       |       |       |            |          |
+|* 14 |          INDEX RANGE SCAN              | TO_OS_IX      | 13500 |       |       |    72   (0)| 00:00:01 |
+|  15 |     TABLE ACCESS FULL                  | TRY_CUSTOMERS |   150K|    22M|       |   950   (1)| 00:00:01 |
+----------------------------------------------------------------------------------------------------------------
+ 
+Predicate Information (identified by operation id):
+---------------------------------------------------
+ 
+   2 - filter(TO_DATE('31-DEZ-95','DD-MON-RR')>=TO_DATE('1-JAN-90','DD-MON-RR'))
+   3 - access("TRY_CUSTOMERS"."C_CUSTKEY"="TRY_ORDERS"."O_CUSTKEY")
+   9 - access("TRY_ORDERS"."O_ORDERDATE">=TO_DATE('1-JAN-90','DD-MON-RR') AND 
+              "TRY_ORDERS"."O_ORDERDATE"<=TO_DATE('31-DEZ-95','DD-MON-RR'))
+  12 - access("TRY_ORDERS"."O_ORDERSTATUS"='O')
+  14 - access("TRY_ORDERS"."O_ORDERSTATUS"='P')
+
 ```
 **Bemerkung:** Die zuvor erstellten Indizes werden verwendet und die Abfrage erfolgt mit deutlich weniger Kostenaufwand.
 ### 8.2.4 Erkenntnis

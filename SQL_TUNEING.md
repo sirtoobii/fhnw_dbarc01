@@ -827,11 +827,9 @@ Total hints for statement: 1 (U - Unused (1))
 ```
 *Bemerkung:* Durch die Vorgabe eines NL-Joins werden alle Datensätze verglichen, die Kosten für diese Abfrage sind sehr hoch.
 **Erzwingen eines anderen als den Hash-Join**
-
-**NO_USE_HASH (orders customers) MOMENTAN WIRD MERGE JOIN FORCIERT?!**
 ```sql
 EXPLAIN PLAN FOR
-    SELECT /*+ use_merge(ORDERS, CUSTOMERS)*/ * FROM orders, customers WHERE o_custkey = c_custkey;
+    SELECT /*+ NO_USE_HASH(ORDERS, CUSTOMERS)*/ * FROM orders, customers WHERE o_custkey = c_custkey;
 SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
 --output
 /*
@@ -853,13 +851,7 @@ Predicate Information (identified by operation id):
  
    4 - access("O_CUSTKEY"="C_CUSTKEY")
        filter("O_CUSTKEY"="C_CUSTKEY")
- 
-Hint Report (identified by operation id / Query Block Name / Object Alias):
-Total hints for statement: 1 (U - Unused (1))
----------------------------------------------------------------------------
- 
-   3 -  SEL$1 / CUSTOMERS@SEL$1
-         U -  use_merge(ORDERS, CUSTOMERS)
+
 */
 ```
 *Bemerkung:* Durch die Vorgabe, dass der Hash-Join nicht verwendet werden darf, wird ein Merge-Jonin verwendet. Da dieses Join eine sortierte Tabelle
@@ -911,31 +903,82 @@ verwendet.
 
 ## 6.2 Lösungsansatz
 
-Wir möchten mit Hilfe von Indizes auf die `PARTKKEY`- und `SUPPKEY`-Spalten die Abfrage optimieren.
+Wir möchten mit Hilfe von Indizes auf die `PARTKKEY`- und `SUPPKEY`-Spalten die Abfrage optimieren. Zudem erstellen wir
+noch einen Bitmap index auf den parts type `p_ty_ix`. Damit dieser allerdings benutzer werden kann, müssen noch zwei 
+Subquerys hinzugefügt werden.
 ```sql
 CREATE INDEX li_pk_ix on LINEITEMS(L_PARTKEY);
---Index created.
-
 CREATE INDEX li_sk_ix on LINEITEMS(L_SUPPKEY);
---Index created.
-
 CREATE INDEX p_pk_ix ON PARTS(p_partkey);
---Index created.
-
 CREATE INDEX ps_pk_ix ON PARTSUPPS(ps_partkey);
---Index created.
-
 CREATE INDEX ps_sk_ix ON PARTSUPPS(ps_suppkey);
---Index created.
-
-**** ADD EXPLAIN PLAN !!! ****
+CREATE INDEX p_ty_ix ON PARTS(p_type);
+EXPLAIN PLAN FOR
+SELECT COUNT(*)
+FROM parts,partsupps,lineitems
+WHERE p_partkey = ps_partkey
+  AND ps_partkey = l_partkey
+  AND ps_suppkey = l_suppkey
+  AND ((ps_suppkey = 2444 AND p_type = 'MEDIUM ANODIZED BRASS') OR
+       (ps_suppkey = 2444 AND p_type = 'MEDIUM BRUSHED COPPER'))
+  AND ps_suppkey IN (SELECT ps_suppkey FROM partsupps WHERE p_partkey = 2444)
+  AND p_type IN (SELECT p_type FROM parts WHERE p_type = 'MEDIUM ANODIZED BRASS' OR p_type = 'MEDIUM BRUSHED COPPER');
+SELECT plan_table_output
+FROM TABLE (DBMS_XPLAN.DISPLAY('plan_table', null, 'typical'));
+-- output
+/*
+Plan hash value: 3657672367
+ 
+-----------------------------------------------------------------------------------------------------
+| Id  | Operation                               | Name      | Rows  | Bytes | Cost (%CPU)| Time     |
+-----------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT                        |           |     1 |    71 |    16   (0)| 00:00:01 |
+|   1 |  SORT AGGREGATE                         |           |     1 |    71 |            |          |
+|   2 |   NESTED LOOPS SEMI                     |           |     1 |    71 |    16   (0)| 00:00:01 |
+|   3 |    NESTED LOOPS                         |           |     1 |    49 |    14   (0)| 00:00:01 |
+|   4 |     NESTED LOOPS                        |           |     1 |    22 |    12   (0)| 00:00:01 |
+|   5 |      MERGE JOIN CARTESIAN               |           |     1 |    13 |     9   (0)| 00:00:01 |
+|   6 |       BITMAP CONVERSION TO ROWIDS       |           |     1 |     9 |     7   (0)| 00:00:01 |
+|   7 |        BITMAP AND                       |           |       |       |            |          |
+|   8 |         BITMAP CONVERSION FROM ROWIDS   |           |       |       |            |          |
+|*  9 |          INDEX RANGE SCAN               | LI_PK_IX  |    30 |       |     3   (0)| 00:00:01 |
+|  10 |         BITMAP CONVERSION FROM ROWIDS   |           |       |       |            |          |
+|* 11 |          INDEX RANGE SCAN               | LI_SK_IX  |    30 |       |     4   (0)| 00:00:01 |
+|  12 |       BUFFER SORT                       |           |    80 |   320 |     2   (0)| 00:00:01 |
+|  13 |        SORT UNIQUE                      |           |    80 |   320 |     2   (0)| 00:00:01 |
+|* 14 |         INDEX RANGE SCAN                | PS_SK_IX  |    80 |   320 |     2   (0)| 00:00:01 |
+|* 15 |      TABLE ACCESS BY INDEX ROWID BATCHED| PARTSUPPS |     1 |     9 |     3   (0)| 00:00:01 |
+|* 16 |       INDEX RANGE SCAN                  | PS_PK_IX  |     4 |       |     2   (0)| 00:00:01 |
+|* 17 |     TABLE ACCESS BY INDEX ROWID BATCHED | PARTS     |     1 |    27 |     2   (0)| 00:00:01 |
+|* 18 |      INDEX RANGE SCAN                   | P_PK_IX   |     1 |       |     1   (0)| 00:00:01 |
+|* 19 |    INDEX RANGE SCAN                     | P_TY_IX   |    41 |   902 |     2   (0)| 00:00:01 |
+-----------------------------------------------------------------------------------------------------
+ 
+Predicate Information (identified by operation id):
+---------------------------------------------------
+ 
+   9 - access("L_PARTKEY"=2444)
+  11 - access("L_SUPPKEY"=2444)
+  14 - access("PS_SUPPKEY"=2444)
+  15 - filter("PS_SUPPKEY"=2444 AND "PS_SUPPKEY"="PS_SUPPKEY")
+  16 - access("PS_PARTKEY"=2444)
+  17 - filter("P_TYPE"='MEDIUM ANODIZED BRASS' OR "P_TYPE"='MEDIUM BRUSHED COPPER')
+  18 - access("P_PARTKEY"=2444)
+  19 - access("P_TYPE"="P_TYPE")
+       filter("P_TYPE"='MEDIUM ANODIZED BRASS' OR "P_TYPE"='MEDIUM BRUSHED COPPER')
+ 
+Note
+-----
+   - this is an adaptive plan
+*/
 ```
-
 ## 6.3 Erkenntnis
-Mit den Indizes konnten wir die Abfragekosten erheblich reduzieren, fast um Faktor 600. Es werden nur doch die Indizes durchsucht und kein
-Full-Access-Scan mehr durchgeführt, diese Massnahmen entlasten zusätzlich den Speicherbedarf.
+Mit den Indizes und den zusätzliche Subqueries konnten wir die Abfragekosten erheblich reduzieren, fast um Faktor 2200!. 
+Es werden nur doch die Indizes durchsucht und kein Full-Access-Scan mehr durchgeführt, diese Massnahmen entlasten zusätzlich den Speicherbedarf.
 
-Mit dem Erstellen von geschickt gewählten Indizes lassen sich Tabellen effizienter durchsuchen, damit wird die Performance drastisch verbessert.
+Mit dem Erstellen von geschickt gewählten Indizes lassen sich Tabellen effizienter durchsuchen, 
+damit wird die Performance drastisch verbessert. Zudem lässt sich durch den gezielten Einsatz von Subqueries das karteische Produkt
+für den Join erheblich reduzieren. Dieser Vorgang wird in den Oracle Docs als `Star Transformation` beschrieben.
 
 # 7. Deep Left Join?
 ## 7.1 Vorbereitung

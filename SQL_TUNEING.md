@@ -70,54 +70,56 @@ SELECT segment_name, extents, bytes FROM DBA_SEGMENTS WHERE owner='DBARC01';
 ![](img_tuning/54620291.png)
 
 # 3. Ausführungsplan
-# 4. Versuche ohne Index
-## 4.1 Projektionen
 ```sql
 EXPLAIN PLAN FOR
     SELECT * FROM ORDERS;
 SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
-
--- output
-/*
-Plan hash value: 1275100350
- 
+```
+```text
 ----------------------------------------------------------------------------
 | Id  | Operation         | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
 ----------------------------------------------------------------------------
 |   0 | SELECT STATEMENT  |        |  1500K|   158M|  6599   (1)| 00:00:01 |
 |   1 |  TABLE ACCESS FULL| ORDERS |  1500K|   158M|  6599   (1)| 00:00:01 |
 ----------------------------------------------------------------------------
-*/
+```
+Die hier gezeigte Tabelle zeigt einen Ausführungsplan welcher mit dem oberhalb angegebenen Query generiert wurde.
+In den folgenden Aufgaben verzichten wir aus Gründen der Übersichtlichkeit auf das wiederholte ausschreiben von
+`EXPLAIN PLAN FOR` und `ELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));`.
+
+# 4. Versuche ohne Index
+## 4.1 Projektionen
+```sql
+SELECT * FROM ORDERS;
+```
+```text
+----------------------------------------------------------------------------
+| Id  | Operation         | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
+----------------------------------------------------------------------------
+|   0 | SELECT STATEMENT  |        |  1500K|   158M|  6599   (1)| 00:00:01 |
+|   1 |  TABLE ACCESS FULL| ORDERS |  1500K|   158M|  6599   (1)| 00:00:01 |
+----------------------------------------------------------------------------
 ```
 *Bemerkung:* Es wird ein Full-Table-Scan benötigt, da das SELECT-Statement keine WHERE-Klausel beinhaltet.
 ```sql
-EXPLAIN PLAN FOR
-    SELECT o_clerk FROM ORDERS;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 1275100350
- 
+SELECT o_clerk FROM ORDERS;
+```
+```text
 ----------------------------------------------------------------------------
 | Id  | Operation         | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
 ----------------------------------------------------------------------------
 |   0 | SELECT STATEMENT  |        |  1500K|    22M|  6597   (1)| 00:00:01 |
 |   1 |  TABLE ACCESS FULL| ORDERS |  1500K|    22M|  6597   (1)| 00:00:01 |
 ----------------------------------------------------------------------------
-*/
 ```
 *Bemerkung:* Hier ist interessant anzumerken, dass derselbe Ausführungsplan verwendet wird, wie wenn alle Spalten
 ausgewählt werden. Der einzige Unterschied ist der Memory-Footprint von 158MB auf 22MB sinkt, ferner sind auch die Kosten minimal tiefer.
 Es wird nur noch eine Spalte abgefragt.
 
 ```sql
-EXPLAIN PLAN FOR
-    SELECT DISTINCT o_clerk FROM ORDERS;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 3394267636
- 
+SELECT DISTINCT o_clerk FROM ORDERS;
+```
+```text
 -----------------------------------------------------------------------------
 | Id  | Operation          | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
 -----------------------------------------------------------------------------
@@ -125,22 +127,18 @@ Plan hash value: 3394267636
 |   1 |  HASH UNIQUE       |        |  1000 | 16000 |  6640   (1)| 00:00:01 |
 |   2 |   TABLE ACCESS FULL| ORDERS |  1500K|    22M|  6597   (1)| 00:00:01 |
 -----------------------------------------------------------------------------
-*/
 ```
 *Bemerkung:* Hier starten wir wieder mit einem Full-Access-Scan über die Tabelle orders. Durch `HASH UNIQUE` reduziert
 sich die Anzahl rows auf 1000, was bedeutet, es gibt genau 1000 unique `o_clerk`. Auch hier trägt der 
-Full-Access-Scan den grössten Teil der _Cost_ bei. 
+Full-Access-Scan den grössten Teil der _Cost_ bei. Die leicht erhöhten Kosten kommen daher, dass Duplikate rausgefiltert werden
+müssen.
 
 ## 4.2 Selektion
 ### 4.2.1 Exact point query
 ```sql
-EXPLAIN PLAN FOR
-    SELECT * FROM orders WHERE o_orderkey = 44480;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 1275100350
- 
+SELECT * FROM orders WHERE o_orderkey = 44480;
+```
+```text
 ----------------------------------------------------------------------------
 | Id  | Operation         | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
 ----------------------------------------------------------------------------
@@ -150,9 +148,7 @@ Plan hash value: 1275100350
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    1 - filter("O_ORDERKEY"=44480)
-*/
 ```
 *Bemerkung:* Wie bei den Projektionen auch muss hier jeweils ein Full-Access-Scan gemacht werden, um anschliessend die Filter anwenden zu können. 
 Da die Spalte `o_cleark`nicht indexiert ist, wird beim ersten Match nicht abgebrochen. Allerdings sparen wir bei den Kosten, da eine Bedingung vorhanden ist.
@@ -160,13 +156,9 @@ Das ist bei jedem der Beispiele in diesem Kapitel der Fall.
 
 ### 4.2.2 Partial point query (OR)
 ```sql
-EXPLAIN PLAN FOR
-    SELECT * FROM orders WHERE o_custkey = 97303 OR o_clerk = 'Clerk#000000860';
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 1275100350
- 
+SELECT * FROM orders WHERE o_custkey = 97303 OR o_clerk = 'Clerk#000000860';
+```
+```text
 ----------------------------------------------------------------------------
 | Id  | Operation         | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
 ----------------------------------------------------------------------------
@@ -176,22 +168,16 @@ Plan hash value: 1275100350
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    1 - filter("O_CLERK"='Clerk#000000860' OR "O_CUSTKEY"=97303)
-*/
 ```
 *Bemerkung:* Als wesentlichen Unterschied zum _exact point query_ kann hier die Grösse in Bytes genannt werden. Was auch Sinn ergibt, da durch die `OR`
-Operation die Schnittmenge erhöht wird. Auch die Kosten sind etwas höher, welche durch den komplexeren Filter erklärbar ist.
+Operation die Schnittmenge erhöht wird. Auch die Kosten sind etwas höher, welche durch das zusätzliche `OR` erklärbar ist.
 
 ### 4.2.3 Partial point query (AND)
 ```sql
-EXPLAIN PLAN FOR
-    SELECT * FROM orders WHERE o_custkey = 97303 AND o_clerk = 'Clerk#000000860';
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 1275100350
- 
+SELECT * FROM orders WHERE o_custkey = 97303 AND o_clerk = 'Clerk#000000860';
+```
+```text
 ----------------------------------------------------------------------------
 | Id  | Operation         | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
 ----------------------------------------------------------------------------
@@ -201,23 +187,18 @@ Plan hash value: 1275100350
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    1 - filter("O_CUSTKEY"=97303 AND "O_CLERK"='Clerk#000000860')
-*/
 ```
 *Bemerkung:* Hier haben wir eigentlich wieder ein _exact point query_ (Sichtbar an den Rows, welche jeweils 1 sind). 
-Ist aber wieder teurer als in [4.3.1](#4.3.1-exact-point-query), da der Filter komplexer ist.
-Allerdings bemerken wir einen Kostenersparnis gegenüber [4.2.3], da die AND-Verknüpfung die nachfolgende Bedingung nur überprüft,
+Ist aber wieder teurer als in [4.2.1](#421-exact-point-query), da der Filter komplexer ist.
+Allerdings bemerken wir einen Kostenersparnis gegenüber [4.2.3](#423-partial-point-query-and), da die AND-Verknüpfung die nachfolgende Bedingung nur überprüft,
 wenn die Vorgängige erfüllt wurde.
-### 4.2.4 Partial point query (weighed)
+
+### 4.2.4 Partial point query (with sum)
 ```sql
-EXPLAIN PLAN FOR
-    SELECT * FROM orders WHERE o_custkey*2 = 194606 AND o_clerk = 'Clerk#000000286';
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 1275100350
- 
+SELECT * FROM orders WHERE o_custkey*2 = 194606 AND o_clerk = 'Clerk#000000286';
+```
+```text
 ----------------------------------------------------------------------------
 | Id  | Operation         | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
 ----------------------------------------------------------------------------
@@ -227,9 +208,7 @@ Plan hash value: 1275100350
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    1 - filter("O_CUSTKEY"*2=194606 AND "O_CLERK"='Clerk#000000286')
-*/
 ```
 *Bemerkung:* Hier handelt es wieder um eine AND-Verknüpfung, allerdings ist eine zusätzliche Operation im Statement ersichtlich.
 Die Kosten sind aber nicht auffällig gestiegen, was bedeutet die Operation wurde nur einmal angewendet, sprich sie wurde zurückgerechnet und
@@ -239,13 +218,9 @@ in das folgende Statement überführt:
 ```
 ### 4.2.5 Range query
 ```sql
-EXPLAIN PLAN FOR
-    SELECT * FROM orders WHERE o_orderkey BETWEEN 111111 AND 222222;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
---output
-/*
-Plan hash value: 1275100350
- 
+SELECT * FROM orders WHERE o_orderkey BETWEEN 111111 AND 222222;
+```
+```text
 ----------------------------------------------------------------------------
 | Id  | Operation         | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
 ----------------------------------------------------------------------------
@@ -255,22 +230,17 @@ Plan hash value: 1275100350
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    1 - filter("O_ORDERKEY"<=222222 AND "O_ORDERKEY">=111111)
-*/
 ```
-*Bemerkung:* Die Range hat sehr wohl einen Effekt - allerdings nur auf den Speicher!
+*Bemerkung:* Die Range hat sehr wohl einen Effekt - allerdings nur auf den Speicher! Dies ist zumindest so lange der Fall
+wie keine Indizies bestehen. Siehe dazu auch [5.2.5](#525-range-query).
 
 **Zur Überprüfung wurden verschiedene Intervallgrössen getestet:**
 ```sql
--- select larger range
-EXPLAIN PLAN FOR
-    SELECT * FROM orders WHERE o_orderkey BETWEEN 0 AND 222222;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 1275100350
- 
+-- larger range
+SELECT * FROM orders WHERE o_orderkey BETWEEN 0 AND 222222;
+```
+```text
 ----------------------------------------------------------------------------
 | Id  | Operation         | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
 ----------------------------------------------------------------------------
@@ -280,17 +250,13 @@ Plan hash value: 1275100350
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    1 - filter("O_ORDERKEY"<=222222 AND "O_ORDERKEY">=0)
-*/
--- select smaller range
-EXPLAIN PLAN FOR
-    SELECT * FROM orders WHERE o_orderkey BETWEEN 222220 AND 222222;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 1275100350
- 
+```
+```sql
+-- smaller range
+SELECT * FROM orders WHERE o_orderkey BETWEEN 222220 AND 222222;
+```
+```text
 ----------------------------------------------------------------------------
 | Id  | Operation         | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
 ----------------------------------------------------------------------------
@@ -300,22 +266,18 @@ Plan hash value: 1275100350
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    1 - filter("O_ORDERKEY"<=222222 AND "O_ORDERKEY">=222220)
-*/
 ```
 *Bemerkung:* Es lässt sich gut erkennen, dass die Kosten unabhängig von der Range gleich bleiben, da alle Zeilen traversiert werden.
-Beim Speicherbedarf stellen wir fest, dass diese abhängig von der Range zunimmt.
+Beim Speicherbedarf stellen wir fest, dass diese abhängig von der Range zunimmt. Was auch Sinn ergibt da mehr/weniger Zeilen 
+ausgewählt werden müssen.
+
 ### 4.2.6 Partial range query
 ```sql
-EXPLAIN PLAN FOR
-    SELECT * FROM orders WHERE o_orderkey BETWEEN 44444 AND 55555
-    AND o_clerk BETWEEN 'Clerk#000000130' AND 'Clerk#000000139';
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
---output
-/*
-Plan hash value: 1275100350
- 
+SELECT * FROM orders WHERE o_orderkey BETWEEN 44444 AND 55555
+AND o_clerk BETWEEN 'Clerk#000000130' AND 'Clerk#000000139';
+```
+```text
 ----------------------------------------------------------------------------
 | Id  | Operation         | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
 ----------------------------------------------------------------------------
@@ -325,23 +287,17 @@ Plan hash value: 1275100350
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    1 - filter("O_ORDERKEY"<=55555 AND "O_CLERK"<='Clerk#000000139' AND 
               "O_ORDERKEY">=44444 AND "O_CLERK">='Clerk#000000130')
-*/
 ```
 *Bemerkung:* Die Zunahme bei den Kosten lässt sich durch den zusätzlichen Range auf einer weiteren Spalte erklären, ebenso die
 markannte Abnahme, durch den verkleinerten Ergebnisbereich.
 ## 4.3 Join
 ### 4.3.1 Natural join
 ```sql
-EXPLAIN PLAN FOR
-    SELECT * FROM orders, customers WHERE o_custkey = c_custkey;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 3042513348
- 
+SELECT * FROM orders, customers WHERE o_custkey = c_custkey;
+```
+```text
 ----------------------------------------------------------------------------------------
 | Id  | Operation          | Name      | Rows  | Bytes |TempSpc| Cost (%CPU)| Time     |
 ----------------------------------------------------------------------------------------
@@ -353,19 +309,16 @@ Plan hash value: 3042513348
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    1 - access("O_CUSTKEY"="C_CUSTKEY")
-*/
 ```
+*Bemerkung:* Für diesen Join müssen beide Tabellen komplett geladen werden und da keine Filterung stattfindet ist der
+`HASH JOIN`auch entsprechend teuer.
+
 ### 4.3.2 Mit zusätzlicher Selektion
 ```sql
-EXPLAIN PLAN FOR
-    SELECT * FROM orders, customers WHERE o_custkey = c_custkey AND o_orderkey < 100;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 23084738
- 
+SELECT * FROM orders, customers WHERE o_custkey = c_custkey AND o_orderkey < 100;
+```
+```text
 --------------------------------------------------------------------------------
 | Id  | Operation          | Name      | Rows  | Bytes | Cost (%CPU)| Time     |
 --------------------------------------------------------------------------------
@@ -377,20 +330,14 @@ Plan hash value: 23084738
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    1 - access("O_CUSTKEY"="C_CUSTKEY")
    2 - filter("O_ORDERKEY"<100)
-*/
 ```
-Spielen Varianten der Formulierung eine Rolle?
+**Spielen Varianten der Formulierung eine Rolle?**
 ```sql
-EXPLAIN PLAN FOR
-    SELECT * FROM orders INNER JOIN customers ON o_custkey = c_custkey WHERE o_orderkey < 100;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 23084738
- 
+SELECT * FROM orders INNER JOIN customers ON o_custkey = c_custkey WHERE o_orderkey < 100;
+```
+```text
 --------------------------------------------------------------------------------
 | Id  | Operation          | Name      | Rows  | Bytes | Cost (%CPU)| Time     |
 --------------------------------------------------------------------------------
@@ -402,23 +349,19 @@ Plan hash value: 23084738
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    1 - access("O_CUSTKEY"="C_CUSTKEY")
    2 - filter("ORDERS"."O_ORDERKEY"<100)
-/*
 ```
 *Bemerkung:* Beim Natural-Join werden alle Zeilen im Rahmen des Full-Access-Scans abgearbeitet, dadurch erheblich hohe Kosten und Speicherbedarf.
 Bei den gefilterten Joins sehen wir keinen Unterschied, was sich darauf schliessen lässt, dass der Optimizer die perfomanteste Abfrage wählt.
-Ausser man definiert Hints, dann fallen gewisse Optimierungen weg.
+Ausser man definiert Hints, dann fallen gewisse Optimierungen weg. Andere Formulierung scheinen zummindest in diesem Fall
+den Ausführungsplan nicht zu beeinflussen.
 # 5. Versuche mit Index
 Indizies erstellen:
 ```sql
 CREATE INDEX o_orderkey_ix ON orders(o_orderkey);
---Index created.
 CREATE INDEX o_clerk_ix ON orders(o_clerk);
---Index created.
 CREATE INDEX o_custkey_ix ON orders(o_custkey);
---Index created.
 ```
 Wie gross sind die Indizies in Bytes?
 ```sql
@@ -430,13 +373,9 @@ SELECT segment_name,bytes FROM user_segments WHERE segment_name IN('O_ORDERKEY_I
 
 ## 5.1 Projektion
 ```sql
-EXPLAIN PLAN FOR
-    SELECT DISTINCT o_clerk FROM ORDERS;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 943631156
- 
+SELECT DISTINCT o_clerk FROM ORDERS;
+```
+```text
 ------------------------------------------------------------------------------------
 | Id  | Operation             | Name       | Rows  | Bytes | Cost (%CPU)| Time     |
 ------------------------------------------------------------------------------------
@@ -444,20 +383,15 @@ Plan hash value: 943631156
 |   1 |  HASH UNIQUE          |            |  1000 | 16000 |  1585   (4)| 00:00:01 |
 |   2 |   INDEX FAST FULL SCAN| O_CLERK_IX |  1500K|    22M|  1542   (1)| 00:00:01 |
 ------------------------------------------------------------------------------------
-*/
 ```
-*Bemerkung:* Beim Vergleichen mit [4.1] sehen wir, dass kein Full-Access-Scan mehr verwendet wird, sondern nun der erstellte Index verwendet wird.
+*Bemerkung:* Beim Vergleichen mit [4.1](#41-projektionen) sehen wir, dass kein Full-Access-Scan mehr verwendet wird, sondern nun der erstellte Index verwendet wird.
 Dies verdeutlicht der Eintrag mit der Id 2.
 ## 5.2 Selektion
 ### 5.2.1 Exact point query
 ```sql
-EXPLAIN PLAN FOR
-    SELECT * FROM orders WHERE o_orderkey = 44480;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 149606076
- 
+SELECT * FROM orders WHERE o_orderkey = 44480;
+```
+```text
 -----------------------------------------------------------------------------------------------------
 | Id  | Operation                           | Name          | Rows  | Bytes | Cost (%CPU)| Time     |
 -----------------------------------------------------------------------------------------------------
@@ -470,7 +404,6 @@ Predicate Information (identified by operation id):
 ---------------------------------------------------
  
    2 - access("O_ORDERKEY"=44480)
-*/
 ```
 *Bemerkung:* Es wird ein Index-Range-Scan ausgeführt, welcher die ROWIDs mit den Speicherinformationen auf der Disk enthält.
 Diese wurden beim Indexieren erstellt, die Suche greift auf die Indexinformationn zu und nicht auf die ganze Tabelle.
@@ -478,13 +411,9 @@ Somit können wir die Kosten um ein Vielfaches senken.
 
 **Mit erzwungenem _full table scan_:**
 ```sql
-EXPLAIN PLAN FOR
-    SELECT /*+ FULL(orders) */ *FROM orders WHERE o_orderkey = 44480;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 1275100350
- 
+SELECT /*+ FULL(orders) */ *FROM orders WHERE o_orderkey = 44480;
+```
+```text
 ----------------------------------------------------------------------------
 | Id  | Operation         | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
 ----------------------------------------------------------------------------
@@ -494,21 +423,15 @@ Plan hash value: 1275100350
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    1 - filter("O_ORDERKEY"=44480)
-*/
 ```
 *Bemerkung:* Hier wird mit einem Hint die Optimierung, in diesem Fall das Verwenden des Indexes, umgangen und ein Full-Access-Scan wird forciert.
 Die Kosten sind um 1600-faches höher.
 ### 5.2.2 Partial point query (OR)
 ```sql
-EXPLAIN PLAN FOR
-    SELECT * FROM orders WHERE o_custkey = 97303 OR o_clerk = 'Clerk#000000860';
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 3504738899
- 
+SELECT * FROM orders WHERE o_custkey = 97303 OR o_clerk = 'Clerk#000000860';
+```
+```text
 ----------------------------------------------------------------------------------------------------
 | Id  | Operation                           | Name         | Rows  | Bytes | Cost (%CPU)| Time     |
 ----------------------------------------------------------------------------------------------------
@@ -524,22 +447,16 @@ Plan hash value: 3504738899
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    5 - access("O_CLERK"='Clerk#000000860')
    7 - access("O_CUSTKEY"=97303)
-*/
 ```
 *Bemerkung:* Wir sehen wieder, dass die Indizes verwendet werden. Diesmal werden gleich zwei Index-Range-Scans ausgeführt, welche mit einem Bitmap-Conversion verglichen werden.
 Dies ist erheblich effizienter und wird durch den Optimizer angewendet, danach kann wieder anhand der ROWID auf den Diskspeicher zugegriffen werden.
 ### 5.2.3 Partial point query (AND)
 ```sql
-EXPLAIN PLAN FOR
-    SELECT * FROM orders WHERE o_custkey = 97303 AND o_clerk = 'Clerk#000000860';
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 2748057999
- 
+SELECT * FROM orders WHERE o_custkey = 97303 AND o_clerk = 'Clerk#000000860';
+```
+```text
 ----------------------------------------------------------------------------------------------------
 | Id  | Operation                           | Name         | Rows  | Bytes | Cost (%CPU)| Time     |
 ----------------------------------------------------------------------------------------------------
@@ -555,22 +472,17 @@ Plan hash value: 2748057999
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    5 - access("O_CUSTKEY"=97303)
    7 - access("O_CLERK"='Clerk#000000860')
-*/
 ```
-*Bemerkung:* Gleich wie bei [5.2.2], ausser dass die AND-Verknüpfung wie schon in [4.2.3] festgestellt, effizienter ist und den Ergebnisbereich
+
+*Bemerkung:* Gleich wie bei [5.2.2](#522-partial-point-query-or), ausser dass die AND-Verknüpfung wie schon in [4.2.3](#423-partial-point-query-and) festgestellt, effizienter ist und den Ergebnisbereich
 noch mehr einschrenkt und weniger Speicherbenötigt. Ferner wird die Reihenfolge der Scans vertauscht, eine Optimierung.
 ### 5.2.4 Partial point query (with product)
 ```sql
-EXPLAIN PLAN FOR
-    SELECT * FROM orders WHERE o_custkey*2 = 194606 AND o_clerk = 'Clerk#000000286';
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 1793913688
- 
+SELECT * FROM orders WHERE o_custkey*2 = 194606 AND o_clerk = 'Clerk#000000286';
+```
+```text
 --------------------------------------------------------------------------------------------------
 | Id  | Operation                           | Name       | Rows  | Bytes | Cost (%CPU)| Time     |
 --------------------------------------------------------------------------------------------------
@@ -581,22 +493,16 @@ Plan hash value: 1793913688
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    1 - filter("O_CUSTKEY"*2=194606)
    2 - access("O_CLERK"='Clerk#000000286')
-/*
 ```
 *Bemerkung:* Hier erfolgt der Scan ebenfalls über den Index, allerdings generiert die zusätzliche Multiplikation höhere Kosten.
-Diese sind immerhin 6-mal (vgl. [4.2.4]) geringer Dank dem erstellten Index.
+Diese sind immerhin 6-mal (vgl. [4.2.4](#424-partial-point-query-with-sum)) geringer Dank dem erstellten Index.
 ### 5.2.5 Range query
 ```sql
-EXPLAIN PLAN FOR
-    SELECT * FROM orders WHERE o_orderkey BETWEEN 111111 AND 222222;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
---output
-/*
-Plan hash value: 149606076
- 
+SELECT * FROM orders WHERE o_orderkey BETWEEN 111111 AND 222222;
+```
+```text
 -----------------------------------------------------------------------------------------------------
 | Id  | Operation                           | Name          | Rows  | Bytes | Cost (%CPU)| Time     |
 -----------------------------------------------------------------------------------------------------
@@ -607,23 +513,15 @@ Plan hash value: 149606076
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    2 - access("O_ORDERKEY">=111111 AND "O_ORDERKEY"<=222222)
-*/
 ```
 *Bemerkung:* Man erkennt, auch beim Range-Query wird ein Index-Range-Scan ausgeführt, allerdings durch den Index wieder etwa um Faktor 6 
-Kostenersparnis.
-
-**CHECK FOLLOWING OUTPUT! Copy&Paste Mistake?**
+Kostenersparnis. Wieder versuchen wir verschieden Ranges:
 ```sql
 -- select larger range
-EXPLAIN PLAN FOR
-    SELECT * FROM orders WHERE o_orderkey BETWEEN 0 AND 222222;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 149606076
- 
+SELECT * FROM orders WHERE o_orderkey BETWEEN 0 AND 222222;
+```
+```text
 -----------------------------------------------------------------------------------------------------
 | Id  | Operation                           | Name          | Rows  | Bytes | Cost (%CPU)| Time     |
 -----------------------------------------------------------------------------------------------------
@@ -634,18 +532,13 @@ Plan hash value: 149606076
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    2 - access("O_ORDERKEY">=111111 AND "O_ORDERKEY"<=222222)
-*/
-
+```
+```sql
 -- select smaller range
-EXPLAIN PLAN FOR
-    SELECT * FROM orders WHERE o_orderkey BETWEEN 222220 AND 222222;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 149606076
- 
+SELECT * FROM orders WHERE o_orderkey BETWEEN 222220 AND 222222;
+```
+```text
 -----------------------------------------------------------------------------------------------------
 | Id  | Operation                           | Name          | Rows  | Bytes | Cost (%CPU)| Time     |
 -----------------------------------------------------------------------------------------------------
@@ -656,21 +549,15 @@ Plan hash value: 149606076
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    2 - access("O_ORDERKEY">=222220 AND "O_ORDERKEY"<=222222)
-*/
 ```
-*Bemerkung:* Es lässt sich gut erkennen, dass die Kosten und der Speicher (im Gegensatz zu vorher [4.2.5]) abhängig von der Range sind, da nicht alle Zeilen traversiert werden.
+*Bemerkung:* Es lässt sich gut erkennen, dass die Kosten und der Speicher (im Gegensatz zu vorher [4.2.5](#425-range-query)) abhängig von der Range sind, da nicht alle Zeilen traversiert werden.
 ### 5.2.6 Partial range query
 ```sql
-EXPLAIN PLAN FOR
-    SELECT * FROM orders WHERE o_orderkey BETWEEN 44444 AND 55555
-    AND o_clerk BETWEEN 'Clerk#000000130' AND 'Clerk#000000139';
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
---output
-/*
-Plan hash value: 2771568121
- 
+SELECT * FROM orders WHERE o_orderkey BETWEEN 44444 AND 55555
+AND o_clerk BETWEEN 'Clerk#000000130' AND 'Clerk#000000139';
+```
+```text
 -----------------------------------------------------------------------------------------------------
 | Id  | Operation                           | Name          | Rows  | Bytes | Cost (%CPU)| Time     |
 -----------------------------------------------------------------------------------------------------
@@ -688,24 +575,18 @@ Plan hash value: 2771568121
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    6 - access("O_ORDERKEY">=44444 AND "O_ORDERKEY"<=55555)
    9 - access("O_CLERK">='Clerk#000000130' AND "O_CLERK"<='Clerk#000000139')
-*/
 ```
-*Bemerkung:* Ebenso wie im vorherigen Beispiel ([4.2.6]) wird aus der Bedingung mit dem kleineren Subset die ROWIDs generiert, dies erfolgt
+*Bemerkung:* Ebenso wie im vorherigen Beispiel ([4.2.6](#426-partial-range-query)) wird aus der Bedingung mit dem kleineren Subset die ROWIDs generiert, dies erfolgt
 mit Hilfe vom Index-Range-Scan. Danach werden die Daten abgefragt und gefiltert, wir stellen hier ein bemerkenswertes Kostenersparnis fest.
 (ca. Faktor 250)
 ## 5.3 Join
 ### 5.3.1 Natural join
 ```sql
-EXPLAIN PLAN FOR
-    SELECT * FROM orders, customers WHERE o_custkey = c_custkey;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 3042513348
- 
+SELECT * FROM orders, customers WHERE o_custkey = c_custkey;
+```
+```text
 ----------------------------------------------------------------------------------------
 | Id  | Operation          | Name      | Rows  | Bytes |TempSpc| Cost (%CPU)| Time     |
 ----------------------------------------------------------------------------------------
@@ -717,24 +598,14 @@ Plan hash value: 3042513348
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    1 - access("O_CUSTKEY"="C_CUSTKEY")
- 
-Note
------
-   - this is an adaptive plan
-*/
 ```
-*Bemerkung:* Hier erfolgt trotz Index ein Full-Access-Scan analog zu [4.3.1].
+*Bemerkung:* Hier erfolgt trotz Index ein Full-Access-Scan analog zu [4.3.1](#431-natural-join).
 ### 5.3.2 Mit zusätzlicher Selektion
 ```sql
-EXPLAIN PLAN FOR
-    SELECT * FROM orders, customers WHERE o_custkey = c_custkey AND o_orderkey < 100;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 391153843
- 
+SELECT * FROM orders, customers WHERE o_custkey = c_custkey AND o_orderkey < 100;
+```
+```text
 ------------------------------------------------------------------------------------------------------
 | Id  | Operation                            | Name          | Rows  | Bytes | Cost (%CPU)| Time     |
 ------------------------------------------------------------------------------------------------------
@@ -747,10 +618,8 @@ Plan hash value: 391153843
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    1 - access("O_CUSTKEY"="C_CUSTKEY")
    3 - access("O_ORDERKEY"<100)
-*/
 ```
 *Bemerkung:* Da in diesem Statement eine Selektion vorgenommen wird, wird diese mit einem Index-Range-Scan für die linke Tabelle (Orders) durchgeführt.
 (Kostenersparnis ca. um Faktor 8)
@@ -758,13 +627,9 @@ Predicate Information (identified by operation id):
 **Mit Zusätzlichem Index**
 ```sql
 CREATE INDEX c_custkey_ix ON customers(c_custkey);
-EXPLAIN PLAN FOR
-    SELECT * FROM orders, customers WHERE o_custkey = c_custkey;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
---output
-/*
-Plan hash value: 3042513348
- 
+SELECT * FROM orders, customers WHERE o_custkey = c_custkey;
+```
+```text
 ----------------------------------------------------------------------------------------
 | Id  | Operation          | Name      | Rows  | Bytes |TempSpc| Cost (%CPU)| Time     |
 ----------------------------------------------------------------------------------------
@@ -776,31 +641,21 @@ Plan hash value: 3042513348
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    1 - access("O_CUSTKEY"="C_CUSTKEY")
- 
-Note
------
-   - this is an adaptive plan
-*/
 ```
 *Bemerkung:* Trotz erstelltem Index für die Tabelle `customers` findet kein Index-Range-Scan statt, sondern ein Full-Access-Scan, es
 wird also auf alle Daten zugegriffen.
 
-*Zitat Oracle Doc:* 
+*Zitat Oracle Doc:*  
 `The value TYPICAL displays only the hints that are not used in the final plan, whereas the value ALL displays both used and unused hints.` 
 Aus Gründen der Übersichtlichkeit verzichten wir in den folgenden Ausgaben auf den `ALL` report.
 Das die Hints benutzt wurden, ist an den Ausführungsplänen ersichtlich.
 
 **Erzwingen eines Nested-Loop-Joins**
 ```sql
-EXPLAIN PLAN FOR
-    SELECT /*+ use_nl(ORDERS, CUSTOMERS) */ * FROM orders, customers WHERE o_custkey = c_custkey;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output
-/*
-Plan hash value: 2285140472
- 
+SELECT /*+ use_nl(ORDERS, CUSTOMERS) */ * FROM orders, customers WHERE o_custkey = c_custkey;
+```
+```text
 ---------------------------------------------------------------------------------------------
 | Id  | Operation                    | Name         | Rows  | Bytes | Cost (%CPU)| Time     |
 ---------------------------------------------------------------------------------------------
@@ -814,13 +669,11 @@ Plan hash value: 2285140472
  
 Predicate Information (identified by operation id):
 ---------------------------------------------------
- 
    4 - access("O_CUSTKEY"="C_CUSTKEY")
  
 Hint Report (identified by operation id / Query Block Name / Object Alias):
 Total hints for statement: 1 (U - Unused (1))
 ---------------------------------------------------------------------------
- 
    3 -  SEL$1 / CUSTOMERS@SEL$1
          U -  use_nl(ORDERS, CUSTOMERS)
 */
@@ -828,13 +681,9 @@ Total hints for statement: 1 (U - Unused (1))
 *Bemerkung:* Durch die Vorgabe eines NL-Joins werden alle Datensätze verglichen, die Kosten für diese Abfrage sind sehr hoch.
 **Erzwingen eines anderen als den Hash-Join**
 ```sql
-EXPLAIN PLAN FOR
-    SELECT /*+ NO_USE_HASH(ORDERS, CUSTOMERS)*/ * FROM orders, customers WHERE o_custkey = c_custkey;
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
---output
-/*
-Plan hash value: 2295045181
- 
+SELECT /*+ NO_USE_HASH(ORDERS, CUSTOMERS)*/ * FROM orders, customers WHERE o_custkey = c_custkey;
+```
+```text
 -----------------------------------------------------------------------------------------
 | Id  | Operation           | Name      | Rows  | Bytes |TempSpc| Cost (%CPU)| Time     |
 -----------------------------------------------------------------------------------------
@@ -851,27 +700,21 @@ Predicate Information (identified by operation id):
  
    4 - access("O_CUSTKEY"="C_CUSTKEY")
        filter("O_CUSTKEY"="C_CUSTKEY")
-
-*/
 ```
 *Bemerkung:* Durch die Vorgabe, dass der Hash-Join nicht verwendet werden darf, wird ein Merge-Jonin verwendet. Da dieses Join eine sortierte Tabelle
 benötigt, wird sie kurzer Hand sortiert und mit einem Full-Access-Scan ausgelesen. Dies lässt die Abfrage sehr teuer und ineffizient werden.
 # 6. Quiz
-**Benchmark-Query**
+**Benchmark-Query** Folgend der Ausführungsplan ohne jegliche indizies oder Umschreibungen:
 ```sql
-EXPLAIN PLAN FOR
-    SELECT COUNT(*)
-    FROM parts, partsupps, lineitems
-    WHERE p_partkey=ps_partkey
-    AND ps_partkey=l_partkey
-    AND ps_suppkey=l_suppkey
-    AND ( (ps_suppkey = 2444 AND p_type = 'MEDIUM ANODIZED BRASS')
-    OR (ps_suppkey = 2444 AND p_type = 'MEDIUM BRUSHED COPPER') );
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('plan_table',null,'typical'));
--- output no indices at all
-/*
-Plan hash value: 1031822529
- 
+SELECT COUNT(*)
+FROM parts, partsupps, lineitems
+WHERE p_partkey=ps_partkey
+AND ps_partkey=l_partkey
+AND ps_suppkey=l_suppkey
+AND ( (ps_suppkey = 2444 AND p_type = 'MEDIUM ANODIZED BRASS')
+OR (ps_suppkey = 2444 AND p_type = 'MEDIUM BRUSHED COPPER') );
+```
+```text
 ----------------------------------------------------------------------------------
 | Id  | Operation            | Name      | Rows  | Bytes | Cost (%CPU)| Time     |
 ----------------------------------------------------------------------------------
@@ -893,7 +736,6 @@ Predicate Information (identified by operation id):
    5 - filter("L_SUPPKEY"=2444)
    6 - filter("P_TYPE"='MEDIUM ANODIZED BRASS' OR "P_TYPE"='MEDIUM 
               BRUSHED COPPER')
-*/
 ```
 ## 6.1 Ausgangslage
 
@@ -913,9 +755,7 @@ CREATE INDEX p_pk_ix ON PARTS(p_partkey);
 CREATE INDEX ps_pk_ix ON PARTSUPPS(ps_partkey);
 CREATE INDEX ps_sk_ix ON PARTSUPPS(ps_suppkey);
 CREATE INDEX p_ty_ix ON PARTS(p_type);
-EXPLAIN PLAN FOR
-SELECT COUNT(*)
-FROM parts,partsupps,lineitems
+SELECT COUNT(*) FROM parts,partsupps,lineitems
 WHERE p_partkey = ps_partkey
   AND ps_partkey = l_partkey
   AND ps_suppkey = l_suppkey
@@ -923,12 +763,8 @@ WHERE p_partkey = ps_partkey
        (ps_suppkey = 2444 AND p_type = 'MEDIUM BRUSHED COPPER'))
   AND ps_suppkey IN (SELECT ps_suppkey FROM partsupps WHERE p_partkey = 2444)
   AND p_type IN (SELECT p_type FROM parts WHERE p_type = 'MEDIUM ANODIZED BRASS' OR p_type = 'MEDIUM BRUSHED COPPER');
-SELECT plan_table_output
-FROM TABLE (DBMS_XPLAN.DISPLAY('plan_table', null, 'typical'));
--- output
-/*
-Plan hash value: 3657672367
- 
+```
+```text
 -----------------------------------------------------------------------------------------------------
 | Id  | Operation                               | Name      | Rows  | Bytes | Cost (%CPU)| Time     |
 -----------------------------------------------------------------------------------------------------
@@ -966,11 +802,6 @@ Predicate Information (identified by operation id):
   18 - access("P_PARTKEY"=2444)
   19 - access("P_TYPE"="P_TYPE")
        filter("P_TYPE"='MEDIUM ANODIZED BRASS' OR "P_TYPE"='MEDIUM BRUSHED COPPER')
- 
-Note
------
-   - this is an adaptive plan
-*/
 ```
 ## 6.3 Erkenntnis
 Mit den Indizes und den zusätzliche Subqueries konnten wir die Abfragekosten erheblich reduzieren, fast um Faktor 2200!. 

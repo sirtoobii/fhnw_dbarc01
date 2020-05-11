@@ -1116,7 +1116,7 @@ Note
 ### 8.1.4 Erkenntnis
 Wir konnten die Abfrage schon für die wachsende Tabelle optimieren. Es handelt sich um ein kleines Beispiel mit wenig Daten; 
 diese kleine Optimierung hat natürlich enormen Einfluss auf grössere und komplexere Datenstrukturen. Diese Erkenntnis kann man somit beliebig nach oben skalieren.
-Allerdings haben wir zu wenig Testdaten, um die Effizienz mit Faktor 100 zu belegen. 
+Allerdings haben wir zu wenig Testdaten, um die Effizienz mit Faktor 100 zu belegen.
 Deshalb greifen wir im Versuch 2 [8.2] auf eine bestehende Tabelle mit grösseren Datenmengen zurück.
 
 ## 8.2 Versuch 2
@@ -1130,14 +1130,14 @@ CREATE TABLE TRY_ORDERS AS SELECT * FROM ORDERS;
 -- Table created.
 ```
 ### 8.2.2 Ausgangslage
-Wir möchten nun eine Abfrage über alle Bestellungen mit dem Status 'P' oder 'O' machen, welche von 1990 bis 1995 stammen.
-Ebenso soll der zugehörige Kunde abgefragt werden.
+Wir möchten nun eine Abfrage über alle Bestellungen mit dem Status 'P' oder 'O' machen, welche von 1994 bis 1995 stammen.
+Ebenso soll der zugehörige Kunde mit dem Guthaben von 100 Einheiten abgefragt werden.
 ```sql
 SELECT * FROM TRY_CUSTOMERS,TRY_ORDERS
 WHERE TRY_ORDERS.O_CUSTKEY = TRY_CUSTOMERS.C_CUSTKEY
   AND (TRY_ORDERS.O_ORDERSTATUS = 'P' OR TRY_ORDERS.O_ORDERSTATUS = 'O')
   AND TRY_ORDERS.O_ORDERDATE BETWEEN to_date('1-JAN-94', 'DD-MON-RR')
-    AND to_date('31-DEZ-95', 'DD-MON-RR')
+  AND to_date('31-DEZ-95', 'DD-MON-RR')
   AND TRY_CUSTOMERS.C_ACCTBAL = 100;
 ```
 ```text
@@ -1163,13 +1163,13 @@ Predicate Information (identified by operation id):
               AND "TRY_ORDERS"."O_ORDERDATE">=TO_DATE('1-JAN-94','DD-MON-RR'))
 ```
 **Bemerkung:** Wie zu erwarten, erfolgt die Abfrage über die Full-Access-Scans auf die beiden Tabellen.
-Nun haben wir deutlich höhere Kosten als im Versuch 1 [8.1].
+Nun haben wir deutlich höhere Kosten als im Versuch 1 [8.1], dies ist der grösseren Datenmenge geschuldet.
 ### 8.2.3 Lösungsansatz
 Auch hier werden wir mit Indizes die Abfrage optimieren.
 Wir erstellen die Indizes auf die folgenden Spalten:
 ```sql
 CREATE INDEX to_ck_ix ON TRY_ORDERS(O_CUSTKEY);
-CREATE INDEX tc_bal_ix ON TRY_CUSTOMERS(C_ACCTBAL);
+CREATE INDEX tc_ac_ix ON TRY_CUSTOMERS(C_ACCTBAL);
 ```
 Nun führen wir erneut die Abfrage aus [8.2.2] durch:
 ```sql
@@ -1177,7 +1177,7 @@ SELECT * FROM TRY_CUSTOMERS,TRY_ORDERS
 WHERE TRY_ORDERS.O_CUSTKEY = TRY_CUSTOMERS.C_CUSTKEY
   AND (TRY_ORDERS.O_ORDERSTATUS = 'P' OR TRY_ORDERS.O_ORDERSTATUS = 'O')
   AND TRY_ORDERS.O_ORDERDATE BETWEEN to_date('1-JAN-94', 'DD-MON-RR')
-    AND to_date('31-DEZ-95', 'DD-MON-RR')
+  AND to_date('31-DEZ-95', 'DD-MON-RR')
   AND TRY_CUSTOMERS.C_ACCTBAL = 100;
 ```
 ```text
@@ -1189,7 +1189,7 @@ WHERE TRY_ORDERS.O_CUSTKEY = TRY_CUSTOMERS.C_CUSTKEY
 |   2 |   NESTED LOOPS                         |               |     1 |   270 |    20   (0)| 00:00:01 |
 |   3 |    NESTED LOOPS                        |               |    15 |   270 |    20   (0)| 00:00:01 |
 |   4 |     TABLE ACCESS BY INDEX ROWID BATCHED| TRY_CUSTOMERS |     1 |   159 |     3   (0)| 00:00:01 |
-|*  5 |      INDEX RANGE SCAN                  | TC_BAL_IX     |     1 |       |     1   (0)| 00:00:01 |
+|*  5 |      INDEX RANGE SCAN                  | TC_AB_IX      |     1 |       |     1   (0)| 00:00:01 |
 |*  6 |     INDEX RANGE SCAN                   | TO_CK_IX      |    15 |       |     2   (0)| 00:00:01 |
 |*  7 |    TABLE ACCESS BY INDEX ROWID         | TRY_ORDERS    |     1 |   111 |    17   (0)| 00:00:01 |
 --------------------------------------------------------------------------------------------------------
@@ -1205,6 +1205,6 @@ Predicate Information (identified by operation id):
 ```
 **Bemerkung:** Die zuvor erstellten Indizes werden verwendet und die Abfrage erfolgt mit deutlich weniger Kostenaufwand.
 ### 8.2.4 Erkenntnis
-Durch die erheblich grössere Datenmenge konnten wir feststellen, dass die Optimierung mind. Faktor 100 mit sich bringt.
+Durch die erheblich grössere Datenmenge konnten wir feststellen, dass die Optimierung mind. Faktor 370 mit sich bringt.
 Es ist durchaus sinnvoll seine Tabellen und Datenstrukturen so zu designen, dass sie schon von Anfang an mit grösseren
 Datenmengen effizient umgehen kann. Indizes sind eine von vielen Faktoren, um die Datenbankarchitektur effizient zu gestalten.

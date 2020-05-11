@@ -1,21 +1,31 @@
-### Autoren
+# SQL TUNING
+## Modul dbarc FS20
+
+## Autoren
 - Tobias Bossert
 - Jilin Elavathingal
 
-### 1. Einleitung
+# 1. Einleitung
 Dieses Dokument ist im Rahmen des Moduls dbarc entstanden und geht auf die Fragestellungen der Übung 8 ein.
-Konkret befasst sich diese mit dem SQL-Tuneing.
+Konkret befasst sich diese mit dem SQL-Tuning.
 Für eine bessere Übersicht sind die SQL-Befehle in Konsolenschrift und der Syntax zusätzlich in Grossbuchstaben beschrieben, 
 ggf. werden diese mit weiterführenden Befehlen ergänzt.
+
 # 2. Vorbereitung
+
 ## 2.1 Manual Links
+
 - Abbildung 4-2: Optimizer Components
 - [Kapitel 8](https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/optimizer-access-paths.html): Optimizer Access Paths, Introduction to Access Paths
 - [Kapitel 6](https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/generating-and-displaying-execution-plans.html): Explaining and Displaying Execution Plans
 - [Kapitel 19](https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/influencing-the-optimizer.html): Influencing the Optimizer, Influencing the Optimizer with Hints
+
 ## 2.2 TPC-H Schema
+
 ![](img_tuning/schema.png)
+
 ## 2.3 Einrichten der Datenbasis
+
 ```sql
 DROP TABLE regions;
 DROP TABLE nations;
@@ -58,6 +68,7 @@ CREATE TABLE lineitems
 AS SELECT *
 FROM dbarc00.lineitems;
 ```
+\pagebreak
 ## 2.4 Statistiken erheben
 Anzahl Zeilen **(a)** und Anzahl Blocks **(c)**
 ```sql
@@ -219,6 +230,7 @@ in das folgende Statement überführt:
 ```sql
     SELECT * FROM orders WHERE o_custkey = 97303 AND o_clerk = 'Clerk#000000286';
 ```
+\pagebreak
 ### 4.2.5 Range query
 ```sql
 SELECT * FROM orders WHERE o_orderkey BETWEEN 111111 AND 222222;
@@ -275,6 +287,7 @@ Predicate Information (identified by operation id):
 Beim Speicherbedarf stellen wir fest, dass diese abhängig von der Range zunimmt. Was auch Sinn ergibt da mehr/weniger Zeilen 
 ausgewählt werden müssen.
 
+\pagebreak
 ### 4.2.6 Partial range query
 ```sql
 SELECT * FROM orders WHERE o_orderkey BETWEEN 44444 AND 55555
@@ -336,6 +349,7 @@ Predicate Information (identified by operation id):
    1 - access("O_CUSTKEY"="C_CUSTKEY")
    2 - filter("O_ORDERKEY"<100)
 ```
+\pagebreak
 **Spielen Varianten der Formulierung eine Rolle?**
 
 ```sql
@@ -436,6 +450,7 @@ Predicate Information (identified by operation id):
 ```
 *Bemerkung:* Hier wird mit einem Hint die Optimierung, in diesem Fall das Verwenden des Indexes, umgangen und ein Full-Access-Scan wird forciert.
 Die Kosten sind um 1600-faches höher.
+
 ### 5.2.2 Partial point query (OR)
 
 ```sql
@@ -462,6 +477,7 @@ Predicate Information (identified by operation id):
 ```
 *Bemerkung:* Wir sehen wieder, dass die Indizes verwendet werden. Diesmal werden gleich zwei Index-Range-Scans ausgeführt, welche mit einem Bitmap-Conversion verglichen werden.
 Dies ist erheblich effizienter und wird durch den Optimizer angewendet, danach kann wieder anhand der ROWID auf den Diskspeicher zugegriffen werden.
+
 ### 5.2.3 Partial point query (AND)
 
 ```sql
@@ -512,6 +528,7 @@ Predicate Information (identified by operation id):
 *Bemerkung:* Hier erfolgt der Scan ebenfalls über den Index, allerdings generiert die zusätzliche Multiplikation höhere Kosten.
 Diese sind immerhin 6-mal (vgl. [4.2.4](#424-partial-point-query-with-sum)) geringer Dank dem erstellten Index.
 
+\pagebreak
 ### 5.2.5 Range query
 ```sql
 SELECT * FROM orders WHERE o_orderkey BETWEEN 111111 AND 222222;
@@ -567,6 +584,8 @@ Predicate Information (identified by operation id):
 ```
 *Bemerkung:* Es lässt sich gut erkennen, dass nun auch die Kosten signifikant tiefer sind (im Gegensatz zu vorher [4.2.5](#425-range-query)).
 Der Index hilft hier bei beiden Fällen den Disk-Access auf das nötige zu reduzieren.
+
+\pagebreak
 ### 5.2.6 Partial range query
 ```sql
 SELECT * FROM orders WHERE o_orderkey BETWEEN 44444 AND 55555
@@ -596,8 +615,11 @@ Predicate Information (identified by operation id):
 *Bemerkung:* Ebenso wie im vorherigen Beispiel ([4.2.6](#426-partial-range-query)) wird aus der Bedingung mit dem kleineren Subset die ROWIDs generiert, dies erfolgt
 mit Hilfe vom Index-Range-Scan. Danach werden die Daten abgefragt und gefiltert, wir stellen hier ein bemerkenswertes Kostenersparnis fest.
 (ca. Faktor 250)
+
 ## 5.3 Join
+
 ### 5.3.1 Natural join
+
 ```sql
 SELECT * FROM orders, customers WHERE o_custkey = c_custkey;
 ```
@@ -616,7 +638,9 @@ Predicate Information (identified by operation id):
    1 - access("O_CUSTKEY"="C_CUSTKEY")
 ```
 *Bemerkung:* Hier erfolgt trotz Index ein Full-Access-Scan analog zu [4.3.1](#431-natural-join).
+
 ### 5.3.2 Mit zusätzlicher Selektion
+
 ```sql
 SELECT * FROM orders, customers WHERE o_custkey = c_custkey AND o_orderkey < 100;
 ```
@@ -693,8 +717,9 @@ Total hints for statement: 1 (U - Unused (1))
          U -  use_nl(ORDERS, CUSTOMERS)
 */
 ```
-*Bemerkung:* Durch die Vorgabe eines NL-Joins werden alle Datensätze verglichen, die Kosten für diese Abfrage sind sehr hoch.  
+*Bemerkung:* Durch die Vorgabe eines NL-Joins werden alle Datensätze verglichen, die Kosten für diese Abfrage sind sehr hoch.
 
+\pagebreak
 **Erzwingen eines anderen als den Hash-Join**
 ```sql
 SELECT /*+ NO_USE_HASH(ORDERS, CUSTOMERS)*/ * FROM orders, customers WHERE o_custkey = c_custkey;
@@ -863,6 +888,7 @@ Predicate Information (identified by operation id):
 ```
 
 Für den Join vollen wir den Optimizer dazu bringen folgenden `Bushy Tree` zu bilden:
+
 ![](img_tuning/bushy_tree.png)  
 
 Um das zu erreichen muss der Query umgeschrieben werden. Zum einen müssen zwei Subquerys für die Tabellen `orders` und `lineitems` sowie für
@@ -944,6 +970,7 @@ Predicate Information (identified by operation id):
 Interessanterweise, bringt uns bei diesem Query ein Index nicht einen allzu grossen Vorteil. Mann müsste wahrscheinlich noch weitere
 Subquerys für `partsupps` und `lineitems` definieren damit auch alle Indizes benützt werden können. Siehe dazu [Star Tranformation](#63-erkenntnis)
 
+\pagebreak
 # 8. Eigene SQL Anfragen
 ## 8.1 Versuch 1
 ### 8.1.1 Vorbereitung
@@ -1020,6 +1047,7 @@ CREATE TABLE OWN_ORD
 Das Einfügen von Beispieldaten wurde hier bewusst weggelassen, da dieser Teil nicht weiter von Bedeutung ist.
 Mehr Infos unter https://www.oracletutorial.com/getting-started/oracle-sample-database
 
+\pagebreak
 ### 8.1.2 Ausgangslage
 Wir möchten nun eine Abfrage über alle Bestellungen mit dem Status 'Pending' oder 'Cancelled' machen, welche aus dem Jahr 2016 stammen.
 Ebenso sollen die Kontaktinformationen und der zuständige Verkäufer abgefragt werden.
@@ -1032,8 +1060,6 @@ WHERE OWN_ORD.SALESMAN_ID = OWN_EMP.EMPLOYEE_ID AND
 ORDER BY OWN_ORD.ORDER_DATE;
 ```
 ```text
-Plan hash value: 4065222492
- 
 --------------------------------------------------------------------------------
 | Id  | Operation            | Name    | Rows  | Bytes | Cost (%CPU)| Time     |
 --------------------------------------------------------------------------------
@@ -1062,9 +1088,10 @@ Note
    - dynamic statistics used: dynamic sampling (level=2)
    - this is an adaptive plan
 ```
-**Bemerkung:** Alle Tabellen werden mit einem Full-Access-Scan verarbeitet, das ist sehr ineffizient. 
+*Bemerkung:* Alle Tabellen werden mit einem Full-Access-Scan verarbeitet, das ist sehr ineffizient. 
 Bei grösseren Datenmengen macht sich dies sehr schnell bemerkbar.
 
+\pagebreak
 ### 8.1.3 Lösungsansatz
 Wie schon in den vorherigen Aufgabenstellungen können wir mit Indizes die Abfrage optimieren.
 Um die Ausführung weiter zu beschleunigen, erstellen wir also Indizes auf die betroffenen Spalten:
@@ -1082,9 +1109,7 @@ WHERE OWN_ORD.SALESMAN_ID = OWN_EMP.EMPLOYEE_ID AND
     OWN_ORD.ORDER_DATE BETWEEN to_date('1-JAN-16','DD-MON-RR') AND to_date('31-DEZ-16','DD-MON-RR')
 ORDER BY OWN_ORD.ORDER_DATE;
 ```
-```text
-Plan hash value: 1607876968
- 
+```text 
 -----------------------------------------------------------------------------------------------------------
 | Id  | Operation                              | Name             | Rows  | Bytes | Cost (%CPU)| Time     |
 -----------------------------------------------------------------------------------------------------------
@@ -1112,13 +1137,14 @@ Note
 -----
    - dynamic statistics used: dynamic sampling (level=2)
 ```
-**Bemerkung:** Die zuvor erstellten Indizes werden verwendet und die Abfrage erfolgt mit weniger Kostenaufwand.
+*Bemerkung:* Die zuvor erstellten Indizes werden verwendet und die Abfrage erfolgt mit weniger Kostenaufwand.
 
 ### 8.1.4 Erkenntnis
 Wir konnten die Abfrage bereits für diese kleine Datenmenge optimieren.
 Allerdings haben wir zu wenig Testdaten, um die Effizienz mit Faktor 100 zu belegen. 
 Deshalb greifen wir im Versuch 2 [8.2](#82-versuch-2) auf eine bestehende Tabelle mit grösseren Datenmengen zurück.
 
+\pagebreak
 ## 8.2 Versuch 2
 ### 8.2.1 Vorbereitung
 Wir erstellen uns eine Kopie aus den vorhandenen Tabellen `ORDERS` und `CUSTOMERS`, diese benennen wir jeweils mit dem
@@ -1130,7 +1156,7 @@ CREATE TABLE TRY_ORDERS AS SELECT * FROM ORDERS;
 -- Table created.
 ```
 ### 8.2.2 Ausgangslage
-Wir möchten nun eine Abfrage über alle Bestellungen mit dem Status `P` oder `O` machen, welche von `1994` bis `1995` stammen.
+Wir möchten nun eine Abfrage über alle Bestellungen mit dem Status 'P' oder 'O' machen, welche von 1994 bis 1995 stammen.
 Ebenso soll der zugehörige Kunde mit dem Guthaben von 100 Einheiten abgefragt werden.
 ```sql
 SELECT * FROM TRY_CUSTOMERS,TRY_ORDERS
@@ -1161,7 +1187,7 @@ Predicate Information (identified by operation id):
               AND ("TRY_ORDERS"."O_ORDERSTATUS"='O' OR "TRY_ORDERS"."O_ORDERSTATUS"='P') 
               AND "TRY_ORDERS"."O_ORDERDATE">=TO_DATE('1-JAN-94','DD-MON-RR'))
 ```
-**Bemerkung:** Wie zu erwarten, erfolgt die Abfrage über die Full-Access-Scans auf die beiden Tabellen. Und dies obwohl am Ende nur eine
+*Bemerkung:* Wie zu erwarten, erfolgt die Abfrage über die Full-Access-Scans auf die beiden Tabellen. Und dies obwohl am Ende nur eine
 einzige Zeile benötigt wird.
 Nun haben wir deutlich höhere Kosten als im Versuch 1 [8.1](#81-versuch-1), dies ist primär der grösseren Datenmenge geschuldet.
 
@@ -1204,7 +1230,8 @@ Predicate Information (identified by operation id):
               ("TRY_ORDERS"."O_ORDERSTATUS"='O' OR "TRY_ORDERS"."O_ORDERSTATUS"='P') AND 
               "TRY_ORDERS"."O_ORDERDATE">=TO_DATE('1-JAN-94','DD-MON-RR'))
 ```
-**Bemerkung:** Die zuvor erstellten Indizes werden verwendet und die Abfrage erfolgt mit deutlich weniger Kostenaufwand.
+*Bemerkung:* Die zuvor erstellten Indizes werden verwendet und die Abfrage erfolgt mit deutlich weniger Kostenaufwand.
+
 ### 8.2.4 Erkenntnis
 Durch die erheblich grössere Datenmenge konnten wir feststellen, dass die Optimierung mind. Faktor 370 mit sich bringt.
 Es ist durchaus sinnvoll seine Tabellen und Datenstrukturen so zu designen, dass sie schon von Anfang an mit grösseren
